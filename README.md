@@ -136,9 +136,7 @@ Example endpoints:
 | GET | `/teachers/` | List teachers |
 | GET | `/attendance/` | Attendance records |
 | GET | `/results/` | Student results |
-
 ---
-
 ## 🗄️ Database
 
 Database: **PostgreSQL**
