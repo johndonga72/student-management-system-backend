@@ -28,7 +28,7 @@ THIRD_PARTY_APPS = [
     "drf_spectacular",
 ]
 LOCAL_APPS = [
-    "apps.accounts",
+     "apps.accounts.apps.AccountsConfig",
     "apps.students",
     "apps.teachers",
     "apps.departments",
@@ -40,6 +40,10 @@ LOCAL_APPS = [
     "apps.dashboard",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+# ==========================================================
+# Custom User Model
+# ==========================================================
+AUTH_USER_MODEL = "accounts.CustomUser"
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
