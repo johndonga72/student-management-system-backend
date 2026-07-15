@@ -6,6 +6,7 @@ Environment-specific settings are defined in:
 - development.py
 - production.py
 """
+from datetime import timedelta
 from pathlib import Path
 # ==========================================================
 # Project Paths
@@ -109,3 +110,25 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# --------------------------------------------------------------------------
+# Django REST Framework
+# --------------------------------------------------------------------------
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+}
+# -----------------------------------------------------------------------------
+# Simple JWT
+# -----------------------------------------------------------------------------
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "UPDATE_LAST_LOGIN": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": 'django-insecure--(&3+h&s_^rv03(x7&l*uze9l$p8)!)u8-9w3+-5oi20vrwidj',
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}

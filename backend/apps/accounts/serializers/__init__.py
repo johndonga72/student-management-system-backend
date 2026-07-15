@@ -1,11 +1,19 @@
-from .registration import UserRegistrationSerializer
-from .authentication import LoginSerializer
-from .profile import UserSerializer
-from .password import ChangePasswordSerializer
-
+"""
+Accounts serializers package.
+"""
+from .authentication import (
+    LoginSerializer,
+    TokenResponseSerializer,
+)
+from .profile import (
+    UserSerializer,
+)
+from .registration import (
+    UserRegistrationSerializer,
+)
 __all__ = [
-    "UserRegistrationSerializer",
     "LoginSerializer",
+    "TokenResponseSerializer",
     "UserSerializer",
-    "ChangePasswordSerializer",
+    "UserRegistrationSerializer",
 ]
