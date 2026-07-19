@@ -4,12 +4,12 @@ Department serializers.
 from .department import (
     DepartmentCreateSerializer,
     DepartmentSerializer,
-    DepartmentStatusSerializer,
     DepartmentUpdateSerializer,
+    DepartmentStatusSerializer,
 )
 __all__ = [
     "DepartmentCreateSerializer",
     "DepartmentSerializer",
     "DepartmentUpdateSerializer",
-    "DepartmentStatusSerializer",
+    "DepartmentStatusSerializer"
 ]

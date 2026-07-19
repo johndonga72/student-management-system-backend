@@ -97,3 +97,21 @@ class DepartmentUpdateSerializer(serializers.ModelSerializer):
                 "A department with this code already exists."
             )
         return value
+from rest_framework import serializers
+class DepartmentStatusSerializer(serializers.Serializer):
+    """
+    Serializer for changing the status of a department.
+    """
+
+    is_active = serializers.BooleanField()
+
+    def validate_is_active(self, value):
+        """
+        Validate the department status.
+        """
+        if not isinstance(value, bool):
+            raise serializers.ValidationError(
+                "is_active must be either true or false."
+            )
+
+        return value
