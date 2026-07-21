@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from core.permissions import IsAdminUser
+from apps.core.permissions import IsAdminRole
 from apps.courses.serializers import (
     CourseCreateSerializer,
     CourseSerializer,
@@ -25,7 +25,7 @@ class CourseListCreateAPIView(APIView):
         """
 
         if self.request.method == "POST":
-            return [IsAuthenticated(), IsAdminUser()]
+            return [IsAuthenticated(), IsAdminRole()]
 
         return [IsAuthenticated()]
 
@@ -85,7 +85,7 @@ class CourseRetrieveUpdateDestroyAPIView(APIView):
         Assign permissions based on request method.
         """
         if self.request.method in ["PATCH", "DELETE"]:
-            return [IsAuthenticated(), IsAdminUser()]
+            return [IsAuthenticated(), IsAdminRole()]
         return [IsAuthenticated()]
     def get(
         self,
@@ -174,7 +174,7 @@ class CourseStatusAPIView(APIView):
     """
     permission_classes = [
         IsAuthenticated,
-        IsAdminUser,
+        IsAdminRole,
     ]
     def patch(
         self,
