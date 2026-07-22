@@ -22,13 +22,13 @@ class Student(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="student_profile",
     )
-
+    
     student_number = models.CharField(
         max_length=20,
         unique=True,
         editable=False,
     )
-
+    
     department = models.ForeignKey(
         Department,
         on_delete=models.PROTECT,
@@ -36,6 +36,7 @@ class Student(TimeStampedModel):
         null=True,
         blank=True,
     )
+    
     course = models.ForeignKey(
         Course,
         on_delete=models.PROTECT,
@@ -43,43 +44,42 @@ class Student(TimeStampedModel):
         null=True,
         blank=True,
     )
-
+    
     semester = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
     )
-
+    
     section = models.CharField(
         max_length=10,
         blank=True,
     )
-
+    
     date_of_birth = models.DateField()
 
     gender = models.CharField(
         max_length=10,
         choices=Gender.choices,
     )
-
+    
     phone = models.CharField(
         max_length=15,
     )
-
+    
     address = models.TextField()
-
     guardian_name = models.CharField(
         max_length=100,
     )
-
+    
     guardian_phone = models.CharField(
         max_length=15,
     )
-
+    
     admission_date = models.DateField(
         null=True,
         blank=True,
     )
-
+    
     status = models.CharField(
         max_length=20,
         choices=StudentStatus.choices,
@@ -93,6 +93,7 @@ class Student(TimeStampedModel):
         ordering = ["student_number"]
         verbose_name = "Student"
         verbose_name_plural = "Students"
-
+        
     def __str__(self) -> str:
         return f"{self.student_number} - {self.user.get_full_name()}"
+    
