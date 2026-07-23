@@ -6,6 +6,7 @@ approving, retrieving, and managing student profiles.
 """
 from __future__ import annotations
 from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError
 from apps.accounts.models import CustomUser
 from apps.students.models import (
     Student,
@@ -197,7 +198,6 @@ class StudentService:
                     field,
                     validated_data[field],
                 )
-
         student.save()
         return student
     @staticmethod
@@ -393,9 +393,7 @@ class StudentService:
         student = StudentService._get_student_object(
             student_id,
         )
-
         student.is_deleted = True
-
         student.save(
             update_fields=[
                 "is_deleted",

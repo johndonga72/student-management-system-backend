@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from core.permissions import IsAdminRole
+from apps.core.permissions import IsAdminRole
 from apps.students.serializers import (
     StudentApprovalSerializer,
     StudentCreateSerializer,
@@ -78,7 +78,7 @@ class StudentProfileAPIView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    def put(
+    def patch(
         self,
         request,
     ):
@@ -93,6 +93,7 @@ class StudentProfileAPIView(APIView):
         serializer = StudentUpdateSerializer(
             student,
             data=request.data,
+            partial=True,
         )
 
         serializer.is_valid(
@@ -169,6 +170,163 @@ class StudentListAPIView(APIView):
                     "Students retrieved successfully."
                 ),
                 "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+class StudentApprovalAPIView(APIView):
+    """
+    Handle student approval operations.
+
+    This API allows administrators to approve
+    pending student profiles by assigning their
+    academic information.
+    """
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdminRole,
+    ]
+
+    def patch(
+        self,
+        request,
+        student_id: int,
+    ) -> Response:
+        """
+        Approve a pending student profile.
+
+        Args:
+            request:
+                HTTP request object.
+
+            student_id:
+                Student primary key.
+
+        Returns:
+            Response:
+                Approved student details.
+        """
+
+        serializer = StudentApprovalSerializer(
+            data=request.data,
+        )
+
+        serializer.is_valid(
+            raise_exception=True,
+        )
+
+        student = StudentService.approve_student(
+            student_id=student_id,
+            validated_data=serializer.validated_data,
+        )
+
+        response_serializer = StudentSerializer(
+            student,
+        )
+
+        return Response(
+            {
+                "message": (
+                    "Student approved successfully."
+                ),
+                "data": response_serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+class StudentStatusAPIView(APIView):
+    """
+    Handle student status management operations.
+
+    This API allows administrators to update
+    the status of a student profile.
+    """
+    permission_classes = [
+        IsAuthenticated,
+        IsAdminRole,
+    ]
+    def patch(
+        self,
+        request,
+        student_id: int,
+    ) -> Response:
+        """
+        Update the status of a student profile.
+
+        Args:
+            request:
+                HTTP request object.
+
+            student_id:
+                Student primary key.
+
+        Returns:
+            Response:
+                Updated student profile.
+        """
+        serializer = StudentStatusSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(
+            raise_exception=True,
+        )
+        student = StudentService.change_student_status(
+            student_id=student_id,
+            status=serializer.validated_data["status"],
+        )
+        response_serializer = StudentSerializer(
+            student,
+        )
+        return Response(
+            {
+                "message": (
+                    "Student status updated successfully."
+                ),
+                "data": response_serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+class StudentDeleteAPIView(APIView):
+    """
+    Handle student deletion operations.
+
+    This API allows administrators to
+    soft delete a student profile.
+    """
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdminRole,
+    ]
+
+    def delete(
+        self,
+        request,
+        student_id: int,
+    ) -> Response:
+        """
+        Soft delete a student profile.
+
+        Args:
+            request:
+                HTTP request object.
+
+            student_id:
+                Student primary key.
+
+        Returns:
+            Response:
+                Success response.
+        """
+
+        StudentService.delete_student(
+            student_id=student_id,
+        )
+
+        return Response(
+            {
+                "message": (
+                    "Student deleted successfully."
+                ),
             },
             status=status.HTTP_200_OK,
         )
