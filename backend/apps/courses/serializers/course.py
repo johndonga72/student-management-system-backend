@@ -41,10 +41,6 @@ class BaseCourseSerializer(serializers.ModelSerializer):
         """
         Validate the selected department.
         """
-        if department.is_deleted:
-            raise serializers.ValidationError(
-                "Selected department has been deleted."
-            )
         if not department.is_active:
             raise serializers.ValidationError(
                 "Selected department is inactive."

@@ -3,6 +3,7 @@ Business services for course-related operations.
 """
 from __future__ import annotations
 from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError
 from apps.courses.models import Course
 class CourseService:
     @staticmethod

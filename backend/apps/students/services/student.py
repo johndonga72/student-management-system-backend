@@ -82,9 +82,9 @@ class StudentService:
         """
 
         latest_student = (
-            Student.objects.order_by(
-                "-id",
-            ).first()
+        Student.objects.exclude(
+        student_number=""
+        ).order_by("-id").first()
         )
 
         if latest_student is None:
@@ -321,8 +321,7 @@ class StudentService:
         semester = validated_data["semester"]
 
         StudentService._validate_department_course(
-            department,
-            course,
+         student
         )
 
         StudentService._validate_semester(
