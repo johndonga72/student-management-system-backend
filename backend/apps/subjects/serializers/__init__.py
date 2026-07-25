@@ -1,10 +1,8 @@
 """
 Subject serializer exports.
-
 This module exposes the public serializers for the
 subject management module.
 """
-
 from .base import BaseSubjectSerializer
 from .subject import (
     SubjectCreateSerializer,
@@ -12,7 +10,6 @@ from .subject import (
     SubjectStatusSerializer,
     SubjectUpdateSerializer,
 )
-
 __all__ = [
     "BaseSubjectSerializer",
     "SubjectCreateSerializer",
