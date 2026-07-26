@@ -25,6 +25,10 @@ class Department(TimeStampedModel):
         default=True,
         help_text="Indicates whether the department is active.",
     )
+    is_deleted = models.BooleanField(
+            default=False,
+            help_text="Soft delete flag.",
+    )
     class Meta:
         """
         Metadata options for the Department model.
