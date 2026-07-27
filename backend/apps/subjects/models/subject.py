@@ -90,5 +90,5 @@ class Subject(TimeStampedModel):
         """
         return (
             f"{self.subject_name} "
-            f"({self.course.course_name})"
+            f"({self.course.name})"
         )
