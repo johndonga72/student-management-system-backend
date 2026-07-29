@@ -14,6 +14,7 @@ class SubjectAdmin(admin.ModelAdmin):
     """
 
     list_display = (
+        "id",
         "subject_name",
         "subject_code",
         "course",
