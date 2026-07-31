@@ -4,7 +4,7 @@ Dashboard API views.
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from apps.accounts.permissions import IsAdminRole
+from apps.core.permissions import IsAdminRole
 from apps.dashboard.serializers import DashboardSerializer
 from apps.dashboard.services import DashboardService
 class DashboardAPIView(APIView):
