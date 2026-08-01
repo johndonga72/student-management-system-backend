@@ -92,3 +92,4 @@ class ExaminationAdmin(admin.ModelAdmin):
             },
         ),
     )
+    

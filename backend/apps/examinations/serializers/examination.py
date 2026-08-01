@@ -1,7 +1,6 @@
 """
 Serializers for examination write operations.
 """
-
 from rest_framework import serializers
 
 from apps.examinations.models import Examination
@@ -25,7 +24,6 @@ class ExaminationCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Examination
-
         fields = (
             "subject",
             "teacher",
@@ -58,7 +56,6 @@ class ExaminationUpdateSerializer(serializers.ModelSerializer):
             "passing_marks",
             "instructions",
         )
-
 
 class ExaminationStatusSerializer(serializers.ModelSerializer):
     """

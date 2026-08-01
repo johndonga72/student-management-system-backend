@@ -6,7 +6,6 @@ from rest_framework import serializers
 
 from apps.examinations.models import Examination
 
-
 class BaseExaminationSerializer(serializers.ModelSerializer):
     """
     Base serializer for examination details.
@@ -47,16 +46,13 @@ class BaseExaminationSerializer(serializers.ModelSerializer):
 
         fields = (
             "id",
-
             # Subject
             "subject",
             "subject_name",
-
             # Teacher
             "teacher",
             "teacher_email",
             "teacher_employee_id",
-
             # Examination
             "exam_type",
             "exam_type_display",
@@ -64,16 +60,13 @@ class BaseExaminationSerializer(serializers.ModelSerializer):
             "semester_display",
             "academic_year",
             "exam_date",
-
             # Marks
             "maximum_marks",
             "passing_marks",
-
             # Additional Information
             "instructions",
             "status",
             "status_display",
-
             # Audit
             "created_at",
             "updated_at",
