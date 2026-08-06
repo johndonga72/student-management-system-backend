@@ -60,26 +60,20 @@ class BaseAttendanceSerializer(serializers.ModelSerializer):
 
         fields = (
             "id",
-
             "student",
             "student_number",
             "student_email",
-
             "teacher",
             "teacher_employee_id",
             "teacher_email",
-
             "subject",
             "subject_name",
             "subject_code",
-
             "course_name",
             "department_name",
-
             "attendance_date",
             "status",
             "remarks",
-
             "created_at",
             "updated_at",
         )

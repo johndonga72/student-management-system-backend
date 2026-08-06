@@ -4,11 +4,9 @@ This module contains serializers used for
 creating and updating attendance records.
 """
 from rest_framework import serializers
-
+from rest_framework.validators import UniqueTogetherValidator
 from apps.attendance.models import Attendance
-
 from .base import BaseAttendanceSerializer
-
 
 class AttendanceCreateSerializer(BaseAttendanceSerializer):
     """
@@ -22,10 +20,25 @@ class AttendanceCreateSerializer(BaseAttendanceSerializer):
             "student",
             "teacher",
             "subject",
-            "attendance_date",
             "status",
+            "attendance_date",
             "remarks",
         )
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Attendance.objects.all(),
+                fields=(
+                    "student",
+                    "subject",
+                    "attendance_date",
+                ),
+                message=(
+                    "Attendance has already been marked "
+                    "for this student on this date "
+                    "for the selected subject."
+                ),
+            )
+        ]
 class AttendanceUpdateSerializer(BaseAttendanceSerializer):
     """
     Serializer for updating attendance records.

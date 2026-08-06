@@ -21,7 +21,6 @@ class ResultAdmin(admin.ModelAdmin):
         "created_at",
     )
     search_fields = (
-        "student__user__full_name",
         "student__user__email",
         "examination__subject__subject_name",
     )

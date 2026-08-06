@@ -2,26 +2,21 @@
 Serializers for examination write operations.
 """
 from rest_framework import serializers
-
 from apps.examinations.models import Examination
-
 from .base import BaseExaminationSerializer
-
+from rest_framework.validators import UniqueTogetherValidator
 
 class ExaminationSerializer(BaseExaminationSerializer):
     """
     Serializer for examination list and detail responses.
     """
-
     class Meta(BaseExaminationSerializer.Meta):
         pass
-
 
 class ExaminationCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating an examination.
     """
-
     class Meta:
         model = Examination
         fields = (
@@ -35,6 +30,24 @@ class ExaminationCreateSerializer(serializers.ModelSerializer):
             "passing_marks",
             "instructions",
         )
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Examination.objects.filter(
+                    is_deleted=False,
+                ),
+                fields=(
+                    "subject",
+                    "exam_type",
+                    "semester",
+                    "academic_year",
+                ),
+                message=(
+                    "An examination with the same subject, "
+                    "exam type, semester, and academic year "
+                    "already exists."
+                ),
+            )
+        ]
 
 
 class ExaminationUpdateSerializer(serializers.ModelSerializer):

@@ -1,11 +1,9 @@
 """
 Attendance API views.
 """
-
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from apps.core.permissions import IsAdminRole
 from apps.attendance.serializers import (
     AttendanceCreateSerializer,
@@ -13,20 +11,15 @@ from apps.attendance.serializers import (
     BaseAttendanceSerializer,
 )
 from apps.attendance.services import AttendanceService
-
-
 class AttendanceAPIView(APIView):
     """
     API view for attendance operations.
     """
-
     permission_classes = [IsAdminRole]
-
     def post(self, request):
         """
         Create a new attendance record.
         """
-
         serializer = AttendanceCreateSerializer(
             data=request.data
         )

@@ -34,7 +34,7 @@ class ExaminationService:
 
         except Examination.DoesNotExist:
             raise ValidationError(
-    "Teacher not found."
+          "exam doesnot found."
     )
     @classmethod
     def _validate_teacher(cls, teacher_id: int) -> Teacher:
@@ -187,7 +187,7 @@ class ExaminationService:
     def _check_duplicate_examination(
         cls,
         *,
-        subject_id,
+        subject,
         exam_type,
         semester,
         academic_year,
@@ -209,7 +209,7 @@ class ExaminationService:
         """
 
         queryset = Examination.objects.filter(
-            subject_id=subject_id,
+            subject=subject,
             exam_type=exam_type,
             semester=semester,
             academic_year=academic_year,

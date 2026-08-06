@@ -57,6 +57,6 @@ class Result(TimeStampedModel):
         Return string representation of the result.
         """
         return (
-            f"{self.student.user.full_name} - "
+            f"{self.student.user.email} - "
             f"{self.examination.subject.subject_name}"
         )

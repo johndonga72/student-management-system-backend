@@ -8,10 +8,17 @@ Environment-specific settings are defined in:
 """
 from datetime import timedelta
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 # ==========================================================
 # Project Paths
 # ==========================================================
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+# ==========================================================
+# Environment Variables
+# ==========================================================
+if not (BASE_DIR / ".env").exists():
+    print("Warning: .env file not found.")
 # Application definition
 DJANGO_APPS = [
     'django.contrib.admin',
@@ -40,6 +47,7 @@ LOCAL_APPS = [
     "apps.results",
     "apps.dashboard",
     "apps.core",
+    "apps.tenants",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ==========================================================

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from apps.results.models import Result
 from .base import BaseResultSerializer
+from rest_framework.validators import UniqueTogetherValidator
 class ResultCreateSerializer(BaseResultSerializer):
     """
     Serializer for creating a result.
@@ -11,6 +12,21 @@ class ResultCreateSerializer(BaseResultSerializer):
             "examination",
             "obtained_marks",
             "remarks",
+        ]
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Result.objects.filter(
+                    is_deleted=False,
+                ),
+                fields=(
+                    "student",
+                    "examination",
+                ),
+                message=(
+                    "A result for this student and examination "
+                    "already exists."
+                ),
+            ),
         ]
 class ResultUpdateSerializer(BaseResultSerializer):
     """
@@ -60,6 +76,6 @@ class ResultSerializer(BaseResultSerializer):
     class Meta(BaseResultSerializer.Meta):
         fields = BaseResultSerializer.Meta.fields + [
             "student_name",
-            "examination_name",
+            "exam_type",
             "subject_name",
         ]

@@ -1,7 +1,8 @@
-from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError
 from django.db import transaction
 from apps.attendance.models import Attendance
 from apps.students.models import Student
+from apps.students.models.choices import StudentStatus
 from apps.subjects.models import Subject
 from apps.teachers.models import Teacher
 from django.db.models import QuerySet
@@ -57,35 +58,30 @@ class AttendanceService:
                     "teacher": "Teacher does not exist."
                 }
             )
-
         if not teacher.is_active:
             raise ValidationError(
                 "Teacher account is inactive."
             )
-
         return teacher
     @classmethod
     def _validate_student(cls, student_id: int) -> Student:
         """
         Validate student.
         """
-
         try:
             student = Student.objects.select_related(
                 "department",
                 "user",
             ).get(id=student_id)
-
         except Student.DoesNotExist:
             raise ValidationError(
                 {
                     "student": "Student does not exist."
                 }
             )
-
-        if not student.is_active:
+        if student.status != StudentStatus.APPROVED:
             raise ValidationError(
-                "Student account is inactive."
+                "Student account is not approved."
             )
 
         return student
@@ -169,15 +165,14 @@ class AttendanceService:
     # =====================================================
     # Bussiness Logic methods
     # =====================================================
-        @classmethod
-        @transaction.atomic
-        def create_attendance(
+    @classmethod
+    @transaction.atomic
+    def create_attendance(
             cls,
             validated_data: dict,
         ) -> Attendance:
             """
             Create a new attendance record.
-
             Args:
                 validated_data:
                     Validated serializer data.
@@ -191,16 +186,13 @@ class AttendanceService:
             teacher_id = validated_data["teacher"].id
             student_id = validated_data["student"].id
             subject_id = validated_data["subject"].id
-
             attendance_date = validated_data["attendance_date"]
             status = validated_data["status"]
             remarks = validated_data.get("remarks")
-
             # Validate related objects
             teacher = cls._validate_teacher(
                 teacher_id,
             )
-
             student = cls._validate_student(
                 student_id,
             )
@@ -235,7 +227,6 @@ class AttendanceService:
                 status=status,
                 remarks=remarks,
             )
-
             return attendance
     @classmethod
     def get_attendance_by_id(cls, attendance_id: int) -> Attendance:

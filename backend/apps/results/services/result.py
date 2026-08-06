@@ -1,12 +1,17 @@
 """
 Business logic for result management.
 """
-from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError
 from apps.results.models import Result, choices
-from apps.students.models import Student,choices
+from apps.students.models import Student
+from apps.students.models.choices import StudentStatus
 from apps.examinations.models import Examination, ExaminationStatus
 from django.db.models import QuerySet
 from django.db import transaction
+from apps.results.models.choices import (
+    ResultStatus,
+    ResultRecordStatus,
+)
 
 class ResultService:
     """
@@ -46,14 +51,14 @@ class ResultService:
     @classmethod
     def _validate_student(
         cls,
-        student_id: int,
+        student: Student,
     ) -> Student:
         """
         Validate the student.
 
         Args:
-            student_id (int):
-                Student identifier.
+            student (Student):
+                Student instance.
 
         Returns:
             Student:
@@ -64,17 +69,11 @@ class ResultService:
                 If the student does not exist or is inactive.
         """
 
-        try:
-            student = Student.objects.get(
-                id=student_id,
-                is_deleted=False,
-            )
-
-        except Student.DoesNotExist:
+        if student.is_deleted:
             raise ValidationError(
                 "Student not found."
             )
-        if student.status != choices.StudentStatus.ACTIVE:
+        if student.status != StudentStatus.APPROVED:
             raise ValidationError(
                 "Student is inactive."
             )
@@ -83,7 +82,7 @@ class ResultService:
     @classmethod
     def _validate_examination(
         cls,
-        examination_id: int,
+        examination: Examination,
     ) -> Examination:
         """
         Validate the examination.
@@ -100,14 +99,7 @@ class ResultService:
             ValidationError:
                 If the examination does not exist or is inactive.
         """
-
-        try:
-            examination = Examination.objects.get(
-                id=examination_id,
-                is_deleted=False,
-            )
-
-        except Examination.DoesNotExist:
+        if examination.is_deleted:
             raise ValidationError(
                 "Examination not found."
             )
@@ -152,7 +144,7 @@ class ResultService:
         cls,
         examination: Examination,
         obtained_marks: int,
-    ) -> choices.ResultStatus:
+    ) -> ResultStatus:
         """
         Calculate the student's result status.
 
