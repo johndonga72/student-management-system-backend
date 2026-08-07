@@ -36,7 +36,7 @@ THIRD_PARTY_APPS = [
     "drf_spectacular",
 ]
 LOCAL_APPS = [
-     "apps.accounts.apps.AccountsConfig",
+    "apps.accounts.apps.AccountsConfig",
     "apps.students",
     "apps.teachers",
     "apps.departments",
@@ -60,6 +60,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.tenants.middleware.TenantMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
