@@ -47,10 +47,8 @@ class AttendanceAdmin(admin.ModelAdmin):
         "teacher",
         "subject",
     )
-
     readonly_fields = (
         "created_at",
         "updated_at",
     )
-
     list_per_page = 25

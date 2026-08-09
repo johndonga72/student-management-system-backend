@@ -1,50 +1,113 @@
+
 """
 Serializers for department-related operations.
 """
+
 from rest_framework import serializers
+
 from apps.departments.models import Department
-class DepartmentCreateSerializer(serializers.ModelSerializer):
+
+
+class TenantAwareSerializerMixin:
+    """
+    Provides access to the current tenant from serializer context.
+    """
+
+    def get_tenant(self):
+        """
+        Return the current tenant from serializer context.
+        """
+
+        tenant = self.context.get("tenant")
+
+        if tenant is None:
+            raise serializers.ValidationError(
+                "Tenant context is required."
+            )
+
+        return tenant
+
+
+class DepartmentCreateSerializer(
+    TenantAwareSerializerMixin,
+    serializers.ModelSerializer,
+):
     """
     Serializer for creating a new department.
     """
+
     class Meta:
         """
         Serializer configuration.
         """
+
         model = Department
+
         fields = (
             "name",
             "code",
             "description",
         )
+
     def validate_name(self, value: str) -> str:
         """
-        Validate that the department name is unique.
+        Validate that the department name is unique
+        within the current tenant.
         """
-        if Department.objects.filter(name__iexact=value).exists():
+
+        value = value.strip()
+
+        tenant = self.get_tenant()
+
+        queryset = Department.objects.for_tenant(
+            tenant
+        ).filter(
+            name__iexact=value,
+        )
+
+        if queryset.exists():
             raise serializers.ValidationError(
                 "A department with this name already exists."
             )
-        return value.strip()
+
+        return value
+
     def validate_code(self, value: str) -> str:
         """
-        Validate that the department code is unique.
+        Validate that the department code is unique
+        within the current tenant.
         """
-        code = value.strip().upper()
-        if Department.objects.filter(code__iexact=code).exists():
+
+        value = value.strip().upper()
+
+        tenant = self.get_tenant()
+
+        queryset = Department.objects.for_tenant(
+            tenant
+        ).filter(
+            code__iexact=value,
+        )
+
+        if queryset.exists():
             raise serializers.ValidationError(
                 "A department with this code already exists."
             )
-        return code
+
+        return value
+
+
 class DepartmentSerializer(serializers.ModelSerializer):
     """
     Serializer for retrieving department details.
     """
+
     class Meta:
         """
         Serializer configuration.
         """
+
         model = Department
+
         fields = (
             "id",
             "name",
@@ -54,50 +117,89 @@ class DepartmentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
         read_only_fields = fields
-    
-class DepartmentUpdateSerializer(serializers.ModelSerializer):
+
+
+class DepartmentUpdateSerializer(
+    TenantAwareSerializerMixin,
+    serializers.ModelSerializer,
+):
     """
     Serializer for updating department information.
     """
+
     class Meta:
         """
         Serializer configuration.
         """
+
         model = Department
+
         fields = (
             "name",
             "code",
             "description",
             "is_active",
         )
+
     def validate_name(self, value: str) -> str:
         """
-        Validate that the department name remains unique.
+        Validate that the department name remains unique
+        within the current tenant.
         """
+
         value = value.strip()
-        queryset = Department.objects.filter(name__iexact=value)
+
+        tenant = self.get_tenant()
+
+        queryset = Department.objects.for_tenant(
+            tenant
+        ).filter(
+            name__iexact=value,
+        )
+
         if self.instance:
-            queryset = queryset.exclude(pk=self.instance.pk)
+            queryset = queryset.exclude(
+                pk=self.instance.pk
+            )
+
         if queryset.exists():
             raise serializers.ValidationError(
                 "A department with this name already exists."
             )
+
         return value
+
     def validate_code(self, value: str) -> str:
         """
-        Validate that the department code remains unique.
+        Validate that the department code remains unique
+        within the current tenant.
         """
+
         value = value.strip().upper()
-        queryset = Department.objects.filter(code__iexact=value)
+
+        tenant = self.get_tenant()
+
+        queryset = Department.objects.for_tenant(
+            tenant
+        ).filter(
+            code__iexact=value,
+        )
+
         if self.instance:
-            queryset = queryset.exclude(pk=self.instance.pk)
+            queryset = queryset.exclude(
+                pk=self.instance.pk
+            )
+
         if queryset.exists():
             raise serializers.ValidationError(
                 "A department with this code already exists."
             )
+
         return value
-from rest_framework import serializers
+
+
 class DepartmentStatusSerializer(serializers.Serializer):
     """
     Serializer for changing the status of a department.
@@ -109,9 +211,10 @@ class DepartmentStatusSerializer(serializers.Serializer):
         """
         Validate the department status.
         """
+
         if not isinstance(value, bool):
             raise serializers.ValidationError(
                 "is_active must be either true or false."
             )
-
+            
         return value
