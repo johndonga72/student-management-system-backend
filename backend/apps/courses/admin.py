@@ -16,6 +16,7 @@ class CourseAdmin(admin.ModelAdmin):
         "credits",
         "is_active",
         "created_at",
+        "tenant",
     )
     list_filter = (
         "department",
@@ -45,6 +46,7 @@ class CourseAdmin(admin.ModelAdmin):
                     "code",
                     "description",
                     "credits",
+                    "tenant",
                 )
             },
         ),

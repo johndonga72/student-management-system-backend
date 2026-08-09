@@ -9,6 +9,7 @@ class StudentAdmin(admin.ModelAdmin):
     Admin configuration for the Student model.
     """
     list_display = (
+        "tenant",
         "student_number",
         "user",
         "department",
@@ -18,6 +19,7 @@ class StudentAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = (
+        "tenant",
         "status",
         "department",
         "course",
@@ -46,6 +48,7 @@ class StudentAdmin(admin.ModelAdmin):
             "Account Information",
             {
                 "fields": (
+                    "tenant",
                     "user",
                     "student_number",
                     "status",

@@ -12,8 +12,8 @@ class SubjectAdmin(admin.ModelAdmin):
     """
     Admin configuration for the Subject model.
     """
-
     list_display = (
+        "tenant",
         "id",
         "subject_name",
         "subject_code",
@@ -23,6 +23,7 @@ class SubjectAdmin(admin.ModelAdmin):
         "is_active",
         "is_deleted",
         "created_at",
+        
     )
 
     list_filter = (
@@ -57,6 +58,7 @@ class SubjectAdmin(admin.ModelAdmin):
             "Subject Information",
             {
                 "fields": (
+                    "tenant",
                     "course",
                     "subject_name",
                     "subject_code",

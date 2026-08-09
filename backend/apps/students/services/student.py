@@ -13,51 +13,71 @@ from apps.students.models import (
     StudentStatus,
 )
 class StudentService:
+    """
+    Service class containing student-related business logic.
+    """
+
     # ======================================================
     # Private Helper Methods
     # ======================================================
+
     @staticmethod
     def _get_student_object(
+        tenant,
         student_id: int,
     ) -> Student:
         """
-        Retrieve a student by its primary key.
+        Retrieve a student belonging to the current tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             student_id:
                 Student primary key.
 
         Returns:
             Student:
-                Student instance.
+                Tenant-scoped student instance.
 
         Raises:
             ValidationError:
-                If the student does not exist.
+                If the student does not exist in the tenant.
         """
 
         try:
-            return Student.objects.select_related(
-                "user",
-                "department",
-                "course",
-            ).get(
-                pk=student_id,
-                is_deleted=False,
+            return (
+                Student.objects
+                .for_tenant(tenant)
+                .select_related(
+                    "user",
+                    "department",
+                    "course",
+                )
+                .get(
+                    pk=student_id,
+                    is_deleted=False,
+                )
             )
 
         except Student.DoesNotExist as exc:
             raise ValidationError(
                 "Student does not exist."
             ) from exc
+
     @staticmethod
     def _student_profile_exists(
+        tenant,
         user: CustomUser,
     ) -> bool:
         """
-        Check whether a student profile already exists.
+        Check whether a student profile already exists
+        for the user within the current tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             user:
                 Authenticated user.
 
@@ -66,15 +86,22 @@ class StudentService:
                 True if a profile exists; otherwise False.
         """
 
-        return Student.objects.filter(
-            user=user,
-            is_deleted=False,
-        ).exists()
-        
+        return (
+            Student.objects
+            .for_tenant(tenant)
+            .filter(
+                user=user,
+                is_deleted=False,
+            )
+            .exists()
+        )
+
     @staticmethod
     def _generate_student_number() -> str:
         """
-        Generate the next unique student number.
+        Generate the next globally unique student number.
+
+        Student numbers are intentionally NOT tenant-scoped.
 
         Returns:
             str:
@@ -82,9 +109,12 @@ class StudentService:
         """
 
         latest_student = (
-        Student.objects.exclude(
-        student_number=""
-        ).order_by("-id").first()
+            Student.objects
+            .exclude(
+                student_number="",
+            )
+            .order_by("-id")
+            .first()
         )
 
         if latest_student is None:
@@ -95,38 +125,97 @@ class StudentService:
         )
 
         return f"ST2026{latest_number + 1:04d}"
+
     @staticmethod
     def _validate_department_course(
+        tenant,
         student: Student,
     ) -> None:
         """
-        Validate that the selected course belongs to
-        the selected department.
+        Validate department and course tenant ownership
+        and their relationship.
 
         Args:
+            tenant:
+                Current tenant.
+
             student:
-                Student instance.
+                Student instance containing the selected
+                department and course.
 
         Raises:
             ValidationError:
-                If the course does not belong to the department.
+                If department/course belong to another
+                tenant or the course does not belong to
+                the selected department.
         """
+
+        department = student.department
+        course = student.course
+
+        # --------------------------------------------------
+        # Department tenant validation
+        # --------------------------------------------------
+
+        if department:
+            if department.tenant_id != tenant.id:
+                raise ValidationError(
+                    "The selected department does not "
+                    "belong to the current tenant."
+                )
+
+            if department.is_deleted:
+                raise ValidationError(
+                    "The selected department has been deleted."
+                )
+
+            if not department.is_active:
+                raise ValidationError(
+                    "The selected department is inactive."
+                )
+
+        # --------------------------------------------------
+        # Course tenant validation
+        # --------------------------------------------------
+
+        if course:
+            if course.tenant_id != tenant.id:
+                raise ValidationError(
+                    "The selected course does not "
+                    "belong to the current tenant."
+                )
+
+            if course.is_deleted:
+                raise ValidationError(
+                    "The selected course has been deleted."
+                )
+
+            if not course.is_active:
+                raise ValidationError(
+                    "The selected course is inactive."
+                )
+
+        # --------------------------------------------------
+        # Course -> Department relationship
+        # --------------------------------------------------
+
         if (
-            student.department
-            and student.course
-            and student.course.department_id
-            != student.department.id
+            department
+            and course
+            and course.department_id != department.id
         ):
             raise ValidationError(
                 "The selected course does not belong "
                 "to the selected department."
             )
+
     @staticmethod
     def _validate_semester(
         semester: int,
     ) -> None:
         """
         Validate semester value.
+
         Args:
             semester:
                 Semester number.
@@ -135,6 +224,7 @@ class StudentService:
             ValidationError:
                 If semester is invalid.
         """
+
         if semester < 1 or semester > 8:
             raise ValidationError(
                 "Semester must be between 1 and 8."
@@ -144,13 +234,18 @@ class StudentService:
 # ======================================================
     @staticmethod
     def create_student_profile(
+        tenant,
         user: CustomUser,
         validated_data: dict,
     ) -> Student:
         """
-        Create a student profile for the authenticated user.
+        Create a student profile for the authenticated user
+        within the current tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             user:
                 Authenticated user.
 
@@ -166,30 +261,55 @@ class StudentService:
                 If the student profile already exists.
         """
 
-        if StudentService._student_profile_exists(user):
+        if StudentService._student_profile_exists(
+            tenant=tenant,
+            user=user,
+        ):
             raise ValidationError(
                 "Student profile already exists."
             )
 
         return Student.objects.create(
+            tenant=tenant,
             user=user,
             **validated_data,
         )
     @staticmethod
     def update_student_profile(
-        student: Student,
+        tenant,
+        student_id: int,
         validated_data: dict,
     ) -> Student:
         """
         Update the student's editable profile fields.
+
+        Args:
+            tenant:
+                Current tenant.
+
+            student_id:
+                Student primary key.
+
+            validated_data:
+                Validated serializer data.
+
+        Returns:
+            Student:
+                Updated student profile.
         """
+
+        student = StudentService._get_student_object(
+            tenant=tenant,
+            student_id=student_id,
+        )
+
         editable_fields = (
-                   "date_of_birth"
-                    "gender",
-                    "phone",
-                    "address",
-                    "guardian_name",
-                    "guardian_phone",
+            "date_of_birth",
+            "gender",
+            "phone",
+            "address",
+            "guardian_name",
+            "guardian_phone",
         )
         for field in editable_fields:
             if field in validated_data:
@@ -202,12 +322,16 @@ class StudentService:
         return student
     @staticmethod
     def get_student_by_id(
+        tenant,
         student_id: int,
     ) -> Student:
         """
-        Retrieve a student by ID.
+        Retrieve a student by ID within the current tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             student_id:
                 Student primary key.
 
@@ -217,16 +341,22 @@ class StudentService:
         """
 
         return StudentService._get_student_object(
-            student_id,
+            tenant=tenant,
+            student_id=student_id,
         )
     @staticmethod
     def get_my_profile(
+        tenant,
         user: CustomUser,
     ) -> Student:
         """
-        Retrieve the authenticated user's student profile.
+        Retrieve the authenticated user's student profile
+        within the current tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             user:
                 Authenticated user.
 
@@ -236,12 +366,18 @@ class StudentService:
         """
 
         try:
-            return Student.objects.select_related(
-                "department",
-                "course",
-            ).get(
-                user=user,
-                is_deleted=False,
+            return (
+                Student.objects
+                .for_tenant(tenant)
+                .select_related(
+                    "user",
+                    "department",
+                    "course",
+                )
+                .get(
+                    user=user,
+                    is_deleted=False,
+                )
             )
 
         except Student.DoesNotExist as exc:
@@ -249,17 +385,26 @@ class StudentService:
                 "Student profile not found."
             ) from exc
     @staticmethod
-    def list_students():
+    def list_students(
+        tenant,
+    ):
         """
-        Retrieve all active student profiles.
+        Retrieve all active student profiles
+        belonging to the current tenant.
+
+        Args:
+            tenant:
+                Current tenant.
 
         Returns:
             QuerySet[Student]:
-                Student queryset.
+                Tenant-scoped student queryset.
         """
 
         return (
-            Student.objects.select_related(
+            Student.objects
+            .for_tenant(tenant)
+            .select_related(
                 "user",
                 "department",
                 "course",
@@ -271,18 +416,28 @@ class StudentService:
                 "student_number",
             )
         )
+
     @staticmethod
-    def list_pending_students():
+    def list_pending_students(
+        tenant,
+    ):
         """
-        Retrieve all pending student profiles.
+        Retrieve all pending student profiles
+        belonging to the current tenant.
+
+        Args:
+            tenant:
+                Current tenant.
 
         Returns:
             QuerySet[Student]:
-                Pending students.
+                Tenant-scoped pending students.
         """
 
         return (
-            Student.objects.select_related(
+            Student.objects
+            .for_tenant(tenant)
+            .select_related(
                 "user",
                 "department",
                 "course",
@@ -291,9 +446,15 @@ class StudentService:
                 status=StudentStatus.PENDING,
                 is_deleted=False,
             )
+            .order_by(
+                "student_number",
+            )
         )
+
+
     @staticmethod
     def approve_student(
+        tenant,
         student_id: int,
         validated_data: dict,
     ) -> Student:
@@ -301,32 +462,104 @@ class StudentService:
         Approve a pending student profile.
 
         Args:
+            tenant:
+                Current tenant.
+
             student_id:
                 Student primary key.
 
             validated_data:
-                Academic information assigned by the administrator.
+                Academic information assigned by
+                the administrator.
 
         Returns:
             Student:
                 Approved student profile.
         """
 
+        # --------------------------------------------------
+        # Retrieve tenant-scoped student
+        # --------------------------------------------------
+
         student = StudentService._get_student_object(
-            student_id,
+            tenant=tenant,
+            student_id=student_id,
         )
+
+        # --------------------------------------------------
+        # Ensure only pending students are approved
+        # --------------------------------------------------
+
+        if student.status != StudentStatus.PENDING:
+            raise ValidationError(
+                "Only pending students can be approved."
+            )
+
+        # --------------------------------------------------
+        # Extract academic information
+        # --------------------------------------------------
 
         department = validated_data["department"]
         course = validated_data["course"]
         semester = validated_data["semester"]
 
-        StudentService._validate_department_course(
-         student
-        )
+        # --------------------------------------------------
+        # Validate department and course
+        # --------------------------------------------------
+
+        if department.tenant_id != tenant.id:
+            raise ValidationError(
+                "The selected department does not "
+                "belong to the current tenant."
+            )
+
+        if course.tenant_id != tenant.id:
+            raise ValidationError(
+                "The selected course does not "
+                "belong to the current tenant."
+            )
+
+        if department.is_deleted:
+            raise ValidationError(
+                "The selected department has been deleted."
+            )
+
+        if not department.is_active:
+            raise ValidationError(
+                "The selected department is inactive."
+            )
+
+        if course.is_deleted:
+            raise ValidationError(
+                "The selected course has been deleted."
+            )
+
+        if not course.is_active:
+            raise ValidationError(
+                "The selected course is inactive."
+            )
+
+        # --------------------------------------------------
+        # Validate course -> department relationship
+        # --------------------------------------------------
+
+        if course.department_id != department.id:
+            raise ValidationError(
+                "The selected course does not belong "
+                "to the selected department."
+            )
+
+        # --------------------------------------------------
+        # Validate semester
+        # --------------------------------------------------
 
         StudentService._validate_semester(
             semester,
         )
+
+        # --------------------------------------------------
+        # Assign academic information
+        # --------------------------------------------------
 
         student.department = department
         student.course = course
@@ -337,14 +570,25 @@ class StudentService:
         student.admission_date = validated_data[
             "admission_date"
         ]
-        student.status = StudentStatus.APPROVED
+
+        # --------------------------------------------------
+        # Generate globally unique student number
+        # --------------------------------------------------
+
         student.student_number = (
             StudentService._generate_student_number()
         )
+
+        student.status = StudentStatus.APPROVED
+
         student.save()
+
         return student
+
+
     @staticmethod
     def change_student_status(
+        tenant,
         student_id: int,
         status: StudentStatus,
     ) -> Student:
@@ -352,6 +596,9 @@ class StudentService:
         Update a student's status.
 
         Args:
+            tenant:
+                Current tenant.
+
             student_id:
                 Student primary key.
 
@@ -364,7 +611,8 @@ class StudentService:
         """
 
         student = StudentService._get_student_object(
-            student_id,
+            tenant=tenant,
+            student_id=student_id,
         )
 
         student.status = status
@@ -377,22 +625,31 @@ class StudentService:
         )
 
         return student
+
+
     @staticmethod
     def delete_student(
+        tenant,
         student_id: int,
     ) -> None:
         """
         Soft delete a student profile.
 
         Args:
+            tenant:
+                Current tenant.
+
             student_id:
                 Student primary key.
         """
 
         student = StudentService._get_student_object(
-            student_id,
+            tenant=tenant,
+            student_id=student_id,
         )
+
         student.is_deleted = True
+
         student.save(
             update_fields=[
                 "is_deleted",

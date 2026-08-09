@@ -1,19 +1,24 @@
 """
 API views for course-related operations.
 """
+
 from __future__ import annotations
+
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
 from apps.core.permissions import IsAdminRole
 from apps.courses.serializers import (
     CourseCreateSerializer,
     CourseSerializer,
-    CourseStatusSerializer,
     CourseUpdateSerializer,
+    CourseStatusSerializer,
 )
 from apps.courses.services import CourseService
+
+
 class CourseListCreateAPIView(APIView):
     """
     API view for listing and creating courses.
@@ -25,16 +30,28 @@ class CourseListCreateAPIView(APIView):
         """
 
         if self.request.method == "POST":
-            return [IsAuthenticated(), IsAdminRole()]
+            return [
+                IsAuthenticated(),
+                IsAdminRole(),
+            ]
 
-        return [IsAuthenticated()]
+        return [
+            IsAuthenticated(),
+        ]
 
-    def get(self, request, *args, **kwargs):
+    def get(
+        self,
+        request,
+        *args,
+        **kwargs,
+    ):
         """
-        List all courses.
+        List all courses for the current tenant.
         """
 
-        courses = CourseService.list_courses()
+        courses = CourseService.list_courses(
+            tenant=request.tenant,
+        )
 
         serializer = CourseSerializer(
             courses,
@@ -49,19 +66,30 @@ class CourseListCreateAPIView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    def post(self, request, *args, **kwargs):
+    def post(
+        self,
+        request,
+        *args,
+        **kwargs,
+    ):
         """
-        Create a new course.
+        Create a new course for the current tenant.
         """
 
         serializer = CourseCreateSerializer(
             data=request.data,
+            context={
+                "tenant": request.tenant,
+            },
         )
 
-        serializer.is_valid(raise_exception=True)
+        serializer.is_valid(
+            raise_exception=True,
+        )
 
         course = CourseService.create_course(
-            serializer.validated_data,
+            tenant=request.tenant,
+            validated_data=serializer.validated_data,
         )
 
         response_serializer = CourseSerializer(
@@ -75,18 +103,32 @@ class CourseListCreateAPIView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
 class CourseRetrieveUpdateDestroyAPIView(APIView):
     """
     API view for retrieving, updating,
     and deleting a course.
     """
+
     def get_permissions(self):
         """
         Assign permissions based on request method.
         """
-        if self.request.method in ["PATCH", "DELETE"]:
-            return [IsAuthenticated(), IsAdminRole()]
-        return [IsAuthenticated()]
+
+        if self.request.method in [
+            "PATCH",
+            "DELETE",
+        ]:
+            return [
+                IsAuthenticated(),
+                IsAdminRole(),
+            ]
+
+        return [
+            IsAuthenticated(),
+        ]
+
     def get(
         self,
         request,
@@ -95,12 +137,18 @@ class CourseRetrieveUpdateDestroyAPIView(APIView):
         **kwargs,
     ):
         """
-        Retrieve course details.
+        Retrieve course details for the current tenant.
         """
+
         course = CourseService.get_course_by_id(
-            course_id,
+            tenant=request.tenant,
+            course_id=course_id,
         )
-        serializer = CourseSerializer(course)
+
+        serializer = CourseSerializer(
+            course,
+        )
+
         return Response(
             {
                 "message": "Course retrieved successfully.",
@@ -123,6 +171,9 @@ class CourseRetrieveUpdateDestroyAPIView(APIView):
         serializer = CourseUpdateSerializer(
             data=request.data,
             partial=True,
+            context={
+                "tenant": request.tenant,
+            },
         )
 
         serializer.is_valid(
@@ -130,8 +181,9 @@ class CourseRetrieveUpdateDestroyAPIView(APIView):
         )
 
         course = CourseService.update_course(
-            course_id,
-            serializer.validated_data,
+            tenant=request.tenant,
+            course_id=course_id,
+            validated_data=serializer.validated_data,
         )
 
         response_serializer = CourseSerializer(
@@ -158,7 +210,8 @@ class CourseRetrieveUpdateDestroyAPIView(APIView):
         """
 
         CourseService.delete_course(
-            course_id,
+            tenant=request.tenant,
+            course_id=course_id,
         )
 
         return Response(
@@ -172,10 +225,12 @@ class CourseStatusAPIView(APIView):
     API view for activating or
     deactivating a course.
     """
+
     permission_classes = [
         IsAuthenticated,
         IsAdminRole,
     ]
+
     def patch(
         self,
         request,
@@ -184,21 +239,29 @@ class CourseStatusAPIView(APIView):
         **kwargs,
     ):
         """
-        Change course status.
+        Change course status within the current tenant.
         """
+
         serializer = CourseStatusSerializer(
             data=request.data,
         )
+
         serializer.is_valid(
             raise_exception=True,
         )
+
         course = CourseService.change_course_status(
-            course_id,
-            serializer.validated_data["is_active"],
+            tenant=request.tenant,
+            course_id=course_id,
+            is_active=serializer.validated_data[
+                "is_active"
+            ],
         )
+
         response_serializer = CourseSerializer(
             course,
         )
+
         return Response(
             {
                 "message": "Course status updated successfully.",

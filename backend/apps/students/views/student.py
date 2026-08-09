@@ -31,19 +31,25 @@ class StudentProfileAPIView(APIView):
         """
         Create a student profile.
         """
+
         serializer = StudentCreateSerializer(
             data=request.data,
         )
+
         serializer.is_valid(
             raise_exception=True,
         )
+
         student = StudentService.create_student_profile(
+            tenant=request.tenant,
             user=request.user,
             validated_data=serializer.validated_data,
         )
+
         response_serializer = StudentSerializer(
             student,
         )
+
         return Response(
             {
                 "message": (
@@ -63,7 +69,8 @@ class StudentProfileAPIView(APIView):
         """
 
         student = StudentService.get_my_profile(
-            request.user,
+            tenant=request.tenant,
+            user=request.user,
         )
 
         serializer = StudentSerializer(
@@ -72,7 +79,9 @@ class StudentProfileAPIView(APIView):
 
         return Response(
             {
-                "message": "Student profile retrieved successfully.",
+                "message": (
+                    "Student profile retrieved successfully."
+                ),
                 "data": serializer.data,
             },
             status=status.HTTP_200_OK,
@@ -86,12 +95,7 @@ class StudentProfileAPIView(APIView):
         Update the authenticated student's profile.
         """
 
-        student = StudentService.get_my_profile(
-            request.user,
-        )
-
         serializer = StudentUpdateSerializer(
-            student,
             data=request.data,
             partial=True,
         )
@@ -101,8 +105,14 @@ class StudentProfileAPIView(APIView):
         )
 
         student = StudentService.update_student_profile(
-            student,
-            serializer.validated_data,
+            tenant=request.tenant,
+            student_id=(
+                StudentService.get_my_profile(
+                    tenant=request.tenant,
+                    user=request.user,
+                ).id
+            ),
+            validated_data=serializer.validated_data,
         )
 
         response_serializer = StudentSerializer(
@@ -118,6 +128,8 @@ class StudentProfileAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
 class StudentListAPIView(APIView):
     """
     Handle student listing operations.
@@ -126,10 +138,12 @@ class StudentListAPIView(APIView):
     It supports retrieving all students or filtering
     students by status.
     """
+
     permission_classes = [
         IsAuthenticated,
         IsAdminRole,
     ]
+
     def get(
         self,
         request,
@@ -147,23 +161,30 @@ class StudentListAPIView(APIView):
         """
 
         status_filter = request.query_params.get(
-            "status"
+            "status",
         )
+
         if (
             status_filter
             and status_filter.upper() == "PENDING"
         ):
             students = (
-                StudentService.list_pending_students()
+                StudentService.list_pending_students(
+                    tenant=request.tenant,
+                )
             )
         else:
             students = (
-                StudentService.list_students()
+                StudentService.list_students(
+                    tenant=request.tenant,
+                )
             )
+
         serializer = StudentSerializer(
             students,
             many=True,
         )
+
         return Response(
             {
                 "message": (
@@ -194,21 +215,13 @@ class StudentApprovalAPIView(APIView):
     ) -> Response:
         """
         Approve a pending student profile.
-
-        Args:
-            request:
-                HTTP request object.
-
-            student_id:
-                Student primary key.
-
-        Returns:
-            Response:
-                Approved student details.
         """
 
         serializer = StudentApprovalSerializer(
             data=request.data,
+            context={
+                "tenant": request.tenant,
+            },
         )
 
         serializer.is_valid(
@@ -216,6 +229,7 @@ class StudentApprovalAPIView(APIView):
         )
 
         student = StudentService.approve_student(
+            tenant=request.tenant,
             student_id=student_id,
             validated_data=serializer.validated_data,
         )
@@ -233,6 +247,8 @@ class StudentApprovalAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
 class StudentStatusAPIView(APIView):
     """
     Handle student status management operations.
@@ -240,10 +256,12 @@ class StudentStatusAPIView(APIView):
     This API allows administrators to update
     the status of a student profile.
     """
+
     permission_classes = [
         IsAuthenticated,
         IsAdminRole,
     ]
+
     def patch(
         self,
         request,
@@ -251,31 +269,26 @@ class StudentStatusAPIView(APIView):
     ) -> Response:
         """
         Update the status of a student profile.
-
-        Args:
-            request:
-                HTTP request object.
-
-            student_id:
-                Student primary key.
-
-        Returns:
-            Response:
-                Updated student profile.
         """
+
         serializer = StudentStatusSerializer(
             data=request.data,
         )
+
         serializer.is_valid(
             raise_exception=True,
         )
+
         student = StudentService.change_student_status(
+            tenant=request.tenant,
             student_id=student_id,
             status=serializer.validated_data["status"],
         )
+
         response_serializer = StudentSerializer(
             student,
         )
+
         return Response(
             {
                 "message": (
@@ -285,6 +298,8 @@ class StudentStatusAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
 class StudentDeleteAPIView(APIView):
     """
     Handle student deletion operations.
@@ -305,20 +320,10 @@ class StudentDeleteAPIView(APIView):
     ) -> Response:
         """
         Soft delete a student profile.
-
-        Args:
-            request:
-                HTTP request object.
-
-            student_id:
-                Student primary key.
-
-        Returns:
-            Response:
-                Success response.
         """
 
         StudentService.delete_student(
+            tenant=request.tenant,
             student_id=student_id,
         )
 
@@ -330,3 +335,4 @@ class StudentDeleteAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+

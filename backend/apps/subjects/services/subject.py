@@ -4,30 +4,32 @@ Subject service.
 This module contains the business logic for managing
 subjects.
 """
-
-from django.core.exceptions import ValidationError
+from __future__ import annotations
 from django.shortcuts import get_object_or_404
 from django.db.models import QuerySet
 from rest_framework.exceptions import ValidationError
 from apps.courses.models import Course
 from apps.subjects.models import Subject
-
-
 class SubjectService:
     """
     Service class for subject-related business operations.
     """
-# ==========================================================
-# Private Helper Methods
-# ==========================================================
+    # ==========================================================
+    # Private Helper Methods
+    # ==========================================================
     @staticmethod
     def _get_subject(
+        *,
+        tenant,
         subject_id: int,
     ) -> Subject:
         """
-        Retrieve a subject by its ID.
+        Retrieve a subject by its ID within the current tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             subject_id:
                 Primary key of the subject.
 
@@ -37,11 +39,13 @@ class SubjectService:
 
         Raises:
             Http404:
-                If the subject does not exist.
+                If the subject does not exist within the tenant.
         """
 
         return get_object_or_404(
-            Subject.objects.select_related(
+            Subject.objects.for_tenant(
+                tenant,
+            ).select_related(
                 "course",
             ),
             pk=subject_id,
@@ -50,20 +54,31 @@ class SubjectService:
 
     @staticmethod
     def _validate_course(
+        *,
+        tenant,
         course: Course,
     ) -> None:
         """
         Validate whether the course can be assigned
-        to a subject.
+        to a subject within the current tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             course:
                 Course instance.
 
         Raises:
             ValidationError:
-                If the course is inactive or deleted.
+                If the course does not belong to the tenant,
+                is inactive, or is deleted.
         """
+
+        if course.tenant_id != tenant.id:
+            raise ValidationError(
+                "Selected course does not belong to this tenant."
+            )
 
         if course.is_deleted:
             raise ValidationError(
@@ -78,15 +93,19 @@ class SubjectService:
     @staticmethod
     def _subject_name_exists(
         *,
+        tenant,
         course: Course,
         subject_name: str,
         exclude_id: int | None = None,
     ) -> bool:
         """
         Check whether a subject name already exists
-        within a course.
+        within a course and tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             course:
                 Course instance.
 
@@ -101,10 +120,14 @@ class SubjectService:
                 True if the subject name already exists.
         """
 
-        queryset = Subject.objects.filter(
-            course=course,
-            subject_name__iexact=subject_name.strip(),
-            is_deleted=False,
+        queryset = (
+            Subject.objects
+            .for_tenant(tenant)
+            .filter(
+                course=course,
+                subject_name__iexact=subject_name.strip(),
+                is_deleted=False,
+            )
         )
 
         if exclude_id is not None:
@@ -117,15 +140,19 @@ class SubjectService:
     @staticmethod
     def _subject_code_exists(
         *,
+        tenant,
         course: Course,
         subject_code: str,
         exclude_id: int | None = None,
     ) -> bool:
         """
         Check whether a subject code already exists
-        within a course.
+        within a course and tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             course:
                 Course instance.
 
@@ -140,10 +167,14 @@ class SubjectService:
                 True if the subject code already exists.
         """
 
-        queryset = Subject.objects.filter(
-            course=course,
-            subject_code__iexact=subject_code.strip(),
-            is_deleted=False,
+        queryset = (
+            Subject.objects
+            .for_tenant(tenant)
+            .filter(
+                course=course,
+                subject_code__iexact=subject_code.strip(),
+                is_deleted=False,
+            )
         )
 
         if exclude_id is not None:
@@ -199,12 +230,17 @@ class SubjectService:
     # ==========================================================
     @staticmethod
     def create_subject(
+        *,
+        tenant,
         validated_data: dict,
     ) -> Subject:
         """
-        Create a new subject.
+        Create a new subject for the current tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             validated_data:
                 Validated subject data.
 
@@ -229,9 +265,13 @@ class SubjectService:
         # Validate business rules
         # ---------------------------------------------------------
 
-        SubjectService._validate_course(course)
+        SubjectService._validate_course(
+            tenant=tenant,
+            course=course,
+        )
 
         if SubjectService._subject_name_exists(
+            tenant=tenant,
             course=course,
             subject_name=subject_name,
         ):
@@ -240,6 +280,7 @@ class SubjectService:
             )
 
         if SubjectService._subject_code_exists(
+            tenant=tenant,
             course=course,
             subject_code=subject_code,
         ):
@@ -252,16 +293,24 @@ class SubjectService:
         # ---------------------------------------------------------
 
         return Subject.objects.create(
+            tenant=tenant,
             **validated_data,
         )
+
+
     @staticmethod
     def get_subject_by_id(
+        *,
+        tenant,
         subject_id: int,
     ) -> Subject:
         """
-        Retrieve a subject by its ID.
+        Retrieve a subject by its ID within the current tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             subject_id:
                 Subject primary key.
 
@@ -271,20 +320,33 @@ class SubjectService:
         """
 
         return SubjectService._get_subject(
-            subject_id,
+            tenant=tenant,
+            subject_id=subject_id,
         )
+
+
     @staticmethod
-    def list_subjects() -> QuerySet[Subject]:
+    def list_subjects(
+        *,
+        tenant,
+    ) -> QuerySet[Subject]:
         """
-        Retrieve all available subjects.
+        Retrieve all available subjects
+        belonging to the current tenant.
+
+        Args:
+            tenant:
+                Current tenant.
 
         Returns:
             QuerySet[Subject]:
-                Collection of subjects.
+                Collection of tenant-scoped subjects.
         """
 
         return (
-            Subject.objects.select_related(
+            Subject.objects
+            .for_tenant(tenant)
+            .select_related(
                 "course",
             )
             .filter(
@@ -295,15 +357,22 @@ class SubjectService:
                 "subject_name",
             )
         )
+
+
     @staticmethod
     def update_subject(
+        *,
+        tenant,
         subject_id: int,
         validated_data: dict,
     ) -> Subject:
         """
-        Update an existing subject.
+        Update an existing subject within the current tenant.
 
         Args:
+            tenant:
+                Current tenant.
+
             subject_id:
                 Subject primary key.
 
@@ -320,7 +389,8 @@ class SubjectService:
         # ---------------------------------------------------------
 
         subject = SubjectService._get_subject(
-            subject_id,
+            tenant=tenant,
+            subject_id=subject_id,
         )
 
         # ---------------------------------------------------------
@@ -346,9 +416,13 @@ class SubjectService:
         # Validate business rules
         # ---------------------------------------------------------
 
-        SubjectService._validate_course(course)
+        SubjectService._validate_course(
+            tenant=tenant,
+            course=course,
+        )
 
         if SubjectService._subject_name_exists(
+            tenant=tenant,
             course=course,
             subject_name=subject_name,
             exclude_id=subject.id,
@@ -358,6 +432,7 @@ class SubjectService:
             )
 
         if SubjectService._subject_code_exists(
+            tenant=tenant,
             course=course,
             subject_code=subject_code,
             exclude_id=subject.id,
@@ -380,17 +455,22 @@ class SubjectService:
         subject.save()
 
         return subject
+
     @staticmethod
     def change_subject_status(
+        *,
+        tenant,
         subject_id: int,
         is_active: bool,
     ) -> Subject:
         """
-        Activate or deactivate a subject.
+        Activate or deactivate a subject
+        within the current tenant.
         """
 
         subject = SubjectService._get_subject(
-            subject_id,
+            tenant=tenant,
+            subject_id=subject_id,
         )
 
         subject.is_active = is_active
@@ -403,16 +483,21 @@ class SubjectService:
         )
 
         return subject
+
+
     @staticmethod
     def delete_subject(
+        *,
+        tenant,
         subject_id: int,
     ) -> None:
         """
-        Soft delete a subject.
+        Soft delete a subject within the current tenant.
         """
 
         subject = SubjectService._get_subject(
-            subject_id,
+            tenant=tenant,
+            subject_id=subject_id,
         )
 
         subject.is_deleted = True

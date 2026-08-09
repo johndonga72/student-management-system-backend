@@ -35,8 +35,39 @@ class BaseSubjectSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
         read_only_fields = (
             "id",
             "created_at",
             "updated_at",
         )
+
+    def validate_course(self, course):
+        """
+        Validate that the selected course belongs
+        to the current tenant.
+        """
+
+        tenant = self.context.get("tenant")
+
+        if tenant is None:
+            raise serializers.ValidationError(
+                "Tenant context is required."
+            )
+
+        if course.tenant_id != tenant.id:
+            raise serializers.ValidationError(
+                "Selected course does not belong to this tenant."
+            )
+
+        if not course.is_active:
+            raise serializers.ValidationError(
+                "Selected course is inactive."
+            )
+
+        if course.is_deleted:
+            raise serializers.ValidationError(
+                "Selected course has been deleted."
+            )
+
+        return course

@@ -69,8 +69,6 @@ class SubjectUpdateSerializer(BaseSubjectSerializer):
                 "required": False,
             },
         }
-
-
 class SubjectSerializer(BaseSubjectSerializer):
     """
     Serializer for retrieving subject details.
