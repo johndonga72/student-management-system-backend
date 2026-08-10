@@ -17,6 +17,7 @@ from apps.courses.serializers import (
     CourseStatusSerializer,
 )
 from apps.courses.services import CourseService
+from drf_spectacular.utils import extend_schema
 
 
 class CourseListCreateAPIView(APIView):
@@ -65,7 +66,10 @@ class CourseListCreateAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
+    @extend_schema(
+        request=CourseCreateSerializer,
+        responses=CourseSerializer,
+    )
     def post(
         self,
         request,
@@ -110,7 +114,6 @@ class CourseRetrieveUpdateDestroyAPIView(APIView):
     API view for retrieving, updating,
     and deleting a course.
     """
-
     def get_permissions(self):
         """
         Assign permissions based on request method.
@@ -157,6 +160,10 @@ class CourseRetrieveUpdateDestroyAPIView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        request=CourseUpdateSerializer,
+        responses=CourseSerializer,
+    )
     def patch(
         self,
         request,
@@ -230,7 +237,10 @@ class CourseStatusAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+        request=CourseStatusSerializer,
+        responses=CourseSerializer,
+    )
     def patch(
         self,
         request,

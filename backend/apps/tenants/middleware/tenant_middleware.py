@@ -57,9 +57,11 @@ class TenantMiddleware:
             "/static/",
             "/media/",
             "/favicon.ico",
-            "/api/schema/",
-            "/api/docs/",
+            "/api/v1/schema/",
+            "/api/v1/docs/",
             "/redoc/",
+            
+            
         )
 
         return request.path.startswith(skip_prefixes)

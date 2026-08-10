@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.core.permissions import IsAdminRole
+from drf_spectacular.utils import extend_schema
 from apps.subjects.serializers import (
     SubjectCreateSerializer,
     SubjectSerializer,
@@ -27,7 +28,10 @@ class SubjectAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+    request=SubjectCreateSerializer,
+    responses=SubjectSerializer,
+)
     def post(self, request):
         """
         Create a new subject.
@@ -88,7 +92,10 @@ class SubjectAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
+    @extend_schema(
+        request=SubjectUpdateSerializer,
+        responses=SubjectSerializer,
+    )
     def put(self, request, subject_id: int):
         """
         Update an existing subject.
@@ -171,7 +178,10 @@ class SubjectStatusAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+        request=SubjectStatusSerializer,
+        responses=SubjectSerializer,
+    )
     def patch(self, request, subject_id: int):
         """
         Activate or deactivate a subject.

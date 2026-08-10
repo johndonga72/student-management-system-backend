@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.core.permissions import IsAdminRole
+from drf_spectacular.utils import extend_schema
 from apps.students.serializers import (
     StudentApprovalSerializer,
     StudentCreateSerializer,
@@ -24,6 +25,10 @@ class StudentProfileAPIView(APIView):
     permission_classes = [
         IsAuthenticated,
     ]
+    @extend_schema(
+    request=StudentCreateSerializer,
+    responses=StudentSerializer,
+)
     def post(
         self,
         request,
@@ -86,7 +91,10 @@ class StudentProfileAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
+    @extend_schema(
+        request=StudentUpdateSerializer,
+        responses=StudentSerializer,
+    )
     def patch(
         self,
         request,
@@ -207,7 +215,10 @@ class StudentApprovalAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+        request=StudentApprovalSerializer,
+        responses=StudentSerializer,
+    )
     def patch(
         self,
         request,
@@ -261,6 +272,10 @@ class StudentStatusAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
+    @extend_schema(
+        request=StudentStatusSerializer,
+        responses=StudentSerializer,
+    )
 
     def patch(
         self,

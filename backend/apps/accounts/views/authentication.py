@@ -17,10 +17,16 @@ from apps.accounts.services import (
     AuthenticationService,
     RegistrationService,
 )
+from drf_spectacular.utils import extend_schema
+
 class RegisterAPIView(APIView):
     """
     API endpoint for registering a new student account.
     """
+    @extend_schema(
+        request=UserRegistrationSerializer,
+        responses=UserSerializer,
+    )
     def post(self, request, *args, **kwargs):
         """
         Register a new student account.
@@ -42,7 +48,10 @@ class LoginAPIView(APIView):
     """
     API endpoint for user authentication.
     """
-
+    @extend_schema(
+        request=LoginSerializer,
+        responses=TokenResponseSerializer,
+    )
     def post(self, request, *args, **kwargs):
         """
         Authenticate a user and return JWT tokens.

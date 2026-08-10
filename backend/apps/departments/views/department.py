@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.core.permissions import IsAdminRole
 from apps.departments.models import Department
+from drf_spectacular.utils import extend_schema
 from apps.departments.serializers import (
     DepartmentCreateSerializer,
     DepartmentSerializer,
@@ -24,7 +25,12 @@ class DepartmentCreateAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+        request=DepartmentCreateSerializer,
+        responses={
+            201: None,
+        },
+    )
     def post(self, request, *args, **kwargs):
         """
         Create a new department.
@@ -135,7 +141,12 @@ class DepartmentUpdateAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+        request=DepartmentUpdateSerializer,
+        responses={
+            200: None,
+        },
+    )
     def patch(
         self,
         request,
@@ -188,6 +199,12 @@ class DepartmentStatusAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
+    @extend_schema(
+        request=DepartmentStatusSerializer,
+        responses={
+            200: None,
+        },
+    )
 
     def patch(
         self,
