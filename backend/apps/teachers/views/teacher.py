@@ -4,6 +4,7 @@ Teacher API views.
 This module contains API views for managing
 teacher operations.
 """
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -33,21 +34,33 @@ class TeacherAPIView(APIView):
         Return the teacher service.
         """
         return TeacherService
-    def post(self, request):
+    
+    @extend_schema(
+    request=TeacherCreateSerializer,
+    responses=TeacherSerializer,
+)
+    def post(
+        self,
+        request,
+    ):
         """
-        Create a teacher profile.
+        Create a teacher profile
+        within the current tenant.
         """
         serializer = TeacherCreateSerializer(
             data=request.data,
+            context={
+                "tenant": request.tenant,
+            },
         )
-
         serializer.is_valid(
             raise_exception=True,
         )
         service = self.get_service()
 
         teacher = service.create_teacher(
-            serializer.validated_data,
+            tenant=request.tenant,
+            validated_data=serializer.validated_data,
         )
 
         response_serializer = TeacherSerializer(
@@ -58,19 +71,28 @@ class TeacherAPIView(APIView):
             response_serializer.data,
             status=status.HTTP_201_CREATED,
         )
+
     def get(
         self,
         request,
         teacher_id: int = None,
     ):
         """
-        Retrieve teacher information.
+        Retrieve teacher information
+        within the current tenant.
         """
+
         service = self.get_service()
+
+        # ---------------------------------------------
+        # List teachers
+        # ---------------------------------------------
 
         if teacher_id is None:
 
-            teachers = service.list_teachers()
+            teachers = service.list_teachers(
+                tenant=request.tenant,
+            )
 
             serializer = TeacherSerializer(
                 teachers,
@@ -82,8 +104,13 @@ class TeacherAPIView(APIView):
                 status=status.HTTP_200_OK,
             )
 
+        # ---------------------------------------------
+        # Retrieve teacher
+        # ---------------------------------------------
+
         teacher = service.get_teacher_by_id(
-            teacher_id,
+            tenant=request.tenant,
+            teacher_id=teacher_id,
         )
 
         serializer = TeacherSerializer(
@@ -94,17 +121,26 @@ class TeacherAPIView(APIView):
             serializer.data,
             status=status.HTTP_200_OK,
         )
+    @extend_schema(
+        request=TeacherUpdateSerializer,
+        responses=TeacherSerializer,
+    )
     def put(
         self,
         request,
         teacher_id: int,
     ):
         """
-        Update a teacher profile.
+        Update a teacher profile
+        within the current tenant.
         """
+
         serializer = TeacherUpdateSerializer(
             data=request.data,
             partial=True,
+            context={
+                "tenant": request.tenant,
+            },
         )
 
         serializer.is_valid(
@@ -112,8 +148,9 @@ class TeacherAPIView(APIView):
         )
 
         teacher = self.get_service().update_teacher(
-            teacher_id,
-            serializer.validated_data,
+            tenant=request.tenant,
+            teacher_id=teacher_id,
+            validated_data=serializer.validated_data,
         )
 
         response_serializer = TeacherSerializer(
@@ -141,13 +178,20 @@ class TeacherListAPIView(APIView):
         """
         return TeacherService
 
-    def get(self, request):
+    def get(
+        self,
+        request,
+    ):
         """
-        Retrieve all teacher profiles.
+        Retrieve all teacher profiles
+        for the current tenant.
         """
+
         service = self.get_service()
 
-        teachers = service.list_teachers()
+        teachers = service.list_teachers(
+            tenant=request.tenant,
+        )
 
         serializer = TeacherSerializer(
             teachers,
@@ -175,15 +219,20 @@ class TeacherStatusAPIView(APIView):
         Return the teacher service.
         """
         return TeacherService
-
+    @extend_schema(
+        request=TeacherStatusSerializer,
+        responses=TeacherSerializer,
+    )
     def patch(
         self,
         request,
         teacher_id: int,
     ):
         """
-        Update the teacher active status.
+        Update the teacher active status
+        within the current tenant.
         """
+
         serializer = TeacherStatusSerializer(
             data=request.data,
         )
@@ -191,10 +240,15 @@ class TeacherStatusAPIView(APIView):
         serializer.is_valid(
             raise_exception=True,
         )
+
         service = self.get_service()
+
         teacher = service.change_teacher_status(
+            tenant=request.tenant,
             teacher_id=teacher_id,
-            is_active=serializer.validated_data["is_active"],
+            is_active=serializer.validated_data[
+                "is_active"
+            ],
         )
 
         response_serializer = TeacherSerializer(
@@ -215,7 +269,6 @@ class TeacherDeleteAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
     @staticmethod
     def get_service() -> TeacherService:
         """
@@ -229,9 +282,12 @@ class TeacherDeleteAPIView(APIView):
         teacher_id: int,
     ):
         """
-        Soft delete a teacher profile.
+        Soft delete a teacher profile
+        within the current tenant.
         """
+
         self.get_service().delete_teacher(
+            tenant=request.tenant,
             teacher_id=teacher_id,
         )
 

@@ -12,23 +12,22 @@ class TeacherSerializer(BaseTeacherSerializer):
     """
     Serializer for representing teacher information.
     """
+
     class Meta(BaseTeacherSerializer.Meta):
         pass
+
+
 class TeacherCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating a teacher profile.
     """
+
     department = serializers.PrimaryKeyRelatedField(
-        queryset=Department.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ),
+        queryset=Department.objects.none(),
     )
+
     subjects = serializers.PrimaryKeyRelatedField(
-        queryset=Subject.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ),
+        queryset=Subject.objects.none(),
         many=True,
         required=False,
     )
@@ -47,25 +46,53 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
             "subjects",
         )
 
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize the serializer with tenant-scoped querysets.
+        """
+
+        super().__init__(*args, **kwargs)
+
+        tenant = self.context.get("tenant")
+
+        if tenant is None:
+            raise serializers.ValidationError(
+                "Tenant context is required."
+            )
+
+        self.fields["department"].queryset = (
+            Department.objects.filter(
+                tenant=tenant,
+                is_active=True,
+                is_deleted=False,
+            )
+        )
+
+        self.fields["subjects"].queryset = (
+            Subject.objects.filter(
+                course__tenant=tenant,
+                is_active=True,
+                is_deleted=False,
+            )
+        )
+
+
 class TeacherUpdateSerializer(serializers.ModelSerializer):
     """
     Serializer for updating a teacher profile.
     """
+
     department = serializers.PrimaryKeyRelatedField(
-        queryset=Department.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ),
+        queryset=Department.objects.none(),
         required=False,
     )
+
     subjects = serializers.PrimaryKeyRelatedField(
-        queryset=Subject.objects.filter(
-            is_active=True,
-            is_deleted=False,
-        ),
+        queryset=Subject.objects.none(),
         many=True,
         required=False,
     )
+
     class Meta:
         model = Teacher
 
@@ -78,10 +105,43 @@ class TeacherUpdateSerializer(serializers.ModelSerializer):
             "joining_date",
             "subjects",
         )
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize the serializer with tenant-scoped querysets.
+        """
+
+        super().__init__(*args, **kwargs)
+
+        tenant = self.context.get("tenant")
+
+        if tenant is None:
+            raise serializers.ValidationError(
+                "Tenant context is required."
+            )
+
+        self.fields["department"].queryset = (
+            Department.objects.filter(
+                tenant=tenant,
+                is_active=True,
+                is_deleted=False,
+            )
+        )
+
+        self.fields["subjects"].queryset = (
+            Subject.objects.filter(
+                course__tenant=tenant,
+                is_active=True,
+                is_deleted=False,
+            )
+        )
+
+
 class TeacherStatusSerializer(serializers.ModelSerializer):
     """
     Serializer for changing teacher status.
     """
+
     class Meta:
         model = Teacher
         fields = (

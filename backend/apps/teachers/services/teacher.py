@@ -29,25 +29,16 @@ class TeacherService:
     # ==========================================================
     # Private Helper Methods
     # ==========================================================
-
     @classmethod
     def _get_teacher(
         cls,
+        tenant,
         teacher_id: int,
     ) -> Teacher:
         """
-        Retrieve an active teacher by identifier.
-
-        Args:
-            teacher_id: Unique identifier of the teacher.
-
-        Returns:
-            Teacher: The matching teacher instance.
-
-        Raises:
-            ValidationError: If the teacher does not exist or
-                has been deleted.
+        Retrieve an active teacher within the current tenant.
         """
+
         try:
             return (
                 Teacher.objects.select_related(
@@ -59,6 +50,7 @@ class TeacherService:
                 )
                 .get(
                     id=teacher_id,
+                    tenant=tenant,
                     is_deleted=False,
                 )
             )
@@ -71,32 +63,21 @@ class TeacherService:
                     ),
                 }
             ) from exc
-
     @classmethod
     def _validate_teacher_user(
         cls,
+        tenant,
         user: CustomUser,
     ) -> CustomUser:
         """
         Validate whether the given user is eligible
-        to become a teacher.
-
-        Args:
-            user: User instance to validate.
-
-        Returns:
-            CustomUser: The validated user instance.
-
-        Raises:
-            ValidationError: If the user is not eligible
-                to become a teacher.
+        to become a teacher within the current tenant.
         """
+
         if not user:
             raise ValidationError(
                 {
-                    "user": (
-                        "User does not exist."
-                    ),
+                    "user": "User does not exist.",
                 }
             )
 
@@ -110,37 +91,41 @@ class TeacherService:
             )
 
         if Teacher.objects.filter(
+            tenant=tenant,
             user=user,
             is_deleted=False,
         ).exists():
             raise ValidationError(
                 {
                     "user": (
-                        "A teacher profile already exists for this user."
+                        "A teacher profile already exists "
+                        "for this user in this tenant."
                     ),
                 }
             )
 
         return user
-
     @classmethod
     def _validate_department(
         cls,
+        tenant,
         department: Department,
     ) -> Department:
         """
-        Validate the assigned department.
-
-        Args:
-            department: Department assigned to the teacher.
-
-        Returns:
-            Department: The validated department.
-
-        Raises:
-            ValidationError: If the department is inactive
-                or has been deleted.
+        Validate the assigned department
+        within the current tenant.
         """
+
+        if department.tenant_id != tenant.id:
+            raise ValidationError(
+                {
+                    "department": (
+                        "The selected department does not "
+                        "belong to the current tenant."
+                    ),
+                }
+            )
+
         if department.is_deleted:
             raise ValidationError(
                 {
@@ -158,32 +143,32 @@ class TeacherService:
                     ),
                 }
             )
-        return department
 
+        return department
     @classmethod
     def _validate_subjects(
         cls,
+        tenant,
         department: Department,
         subjects: Iterable[Subject],
     ) -> list[Subject]:
         """
-        Validate the subjects assigned to the teacher.
-
-        Args:
-            department: Department assigned to the teacher.
-            subjects: Subjects selected for the teacher.
-
-        Returns:
-            list[Subject]: Validated subject instances.
-
-        Raises:
-            ValidationError: If any subject is inactive,
-                deleted, or does not belong to the
-                specified department.
+        Validate subjects assigned to the teacher.
         """
+
         validated_subjects = []
 
         for subject in subjects:
+
+            if subject.course.tenant_id != tenant.id:
+                raise ValidationError(
+                    {
+                        "subjects": (
+                            f"Subject '{subject.subject_name}' "
+                            "does not belong to the current tenant."
+                        ),
+                    }
+                )
 
             if subject.is_deleted:
                 raise ValidationError(
@@ -220,44 +205,48 @@ class TeacherService:
         return validated_subjects
 
     @classmethod
-    def _generate_employee_id(cls) -> str:
+    def _generate_employee_id(
+        cls,
+        tenant,
+    ) -> str:
         """
-        Generate the next unique employee identifier.
+        Generate the next employee identifier
+        within the current tenant.
+        """
 
-        Returns:
-            str: Newly generated employee identifier.
-        """
         last_teacher = (
-            Teacher.objects.order_by("-id")
+            Teacher.objects.filter(
+                tenant=tenant,
+            )
+            .order_by("-id")
             .only("employee_id")
             .first()
         )
+
         if last_teacher is None:
             return "EMP0001"
+
         last_number = int(
             last_teacher.employee_id.replace(
                 "EMP",
                 "",
             )
         )
-        return f"EMP{last_number + 1:04d}"
 
+        return f"EMP{last_number + 1:04d}"
     @classmethod
     def _promote_user_to_teacher(
         cls,
         user: CustomUser,
     ) -> None:
-        """
-        Promote a user from STUDENT to TEACHER.
 
-        Args:
-            user: User to promote.
-        """
         if user.role == UserRole.TEACHER:
             return
 
         user.role = UserRole.TEACHER
-        user.save(update_fields=["role"])
+        user.save(
+            update_fields=["role"],
+        )
 
     # ==========================================================
     # Public Business Methods
@@ -266,64 +255,102 @@ class TeacherService:
     @transaction.atomic
     def create_teacher(
         cls,
+        tenant,
         validated_data: dict,
     ) -> Teacher:
         """
-        Create a teacher profile.
+        Create a teacher profile for the current tenant.
 
         Args:
-            validated_data: Validated serializer data.
+            tenant:
+                Current tenant.
+
+            validated_data:
+                Validated serializer data.
 
         Returns:
-            Teacher: Newly created teacher profile.
+            Teacher:
+                Newly created teacher profile.
         """
-        subjects = validated_data.pop("subjects", [])
 
-        user = cls._validate_teacher_user(validated_data["user"])
-        department = cls._validate_department(validated_data["department"])
+        subjects = validated_data.pop(
+            "subjects",
+            [],
+        )
+
+        user = cls._validate_teacher_user(
+            tenant=tenant,
+            user=validated_data["user"],
+        )
+
+        department = cls._validate_department(
+            tenant=tenant,
+            department=validated_data["department"],
+        )
 
         validated_subjects = cls._validate_subjects(
-            department,
-            subjects,
+            tenant=tenant,
+            department=department,
+            subjects=subjects,
         )
 
         validated_data["user"] = user
         validated_data["department"] = department
-        validated_data["employee_id"] = cls._generate_employee_id()
+        validated_data["tenant"] = tenant
+        validated_data["employee_id"] = (
+            cls._generate_employee_id(
+                tenant=tenant,
+            )
+        )
 
         teacher = Teacher.objects.create(
             **validated_data,
         )
 
-        teacher.subjects.set(validated_subjects)
+        teacher.subjects.set(
+            validated_subjects,
+        )
 
-        cls._promote_user_to_teacher(user)
+        cls._promote_user_to_teacher(
+            user,
+        )
 
         return teacher
     @classmethod
     def get_teacher_by_id(
         cls,
+        tenant,
         teacher_id: int,
     ) -> Teacher:
         """
-        Retrieve a teacher by identifier.
+        Retrieve a teacher within the current tenant.
 
         Args:
-            teacher_id: Unique teacher identifier.
+            tenant:
+                Current tenant.
+
+            teacher_id:
+                Unique teacher identifier.
 
         Returns:
-            Teacher: Matching teacher instance.
+            Teacher:
+                Matching teacher instance.
         """
-        return cls._get_teacher(teacher_id)
 
+        return cls._get_teacher(
+            tenant=tenant,
+            teacher_id=teacher_id,
+        )
     @classmethod
-    def list_teachers(cls) -> QuerySet[Teacher]:
+    def list_teachers(
+        cls,
+        tenant,
+    ) -> QuerySet[Teacher]:
         """
-        Retrieve all active teacher profiles.
+        Retrieve all active teacher profiles
+        within the current tenant.
+        """
 
-        Returns:
-            QuerySet[Teacher]: Teacher queryset.
-        """
         return (
             Teacher.objects.select_related(
                 "user",
@@ -333,21 +360,30 @@ class TeacherService:
                 "subjects",
             )
             .filter(
+                tenant=tenant,
                 is_deleted=False,
             )
-            .order_by("employee_id")
+            .order_by(
+                "employee_id",
+            )
         )
     @classmethod
     @transaction.atomic
     def update_teacher(
         cls,
+        tenant,
         teacher_id: int,
         validated_data: dict,
     ) -> Teacher:
         """
-        Update an existing teacher profile.
+        Update an existing teacher profile
+        within the current tenant.
         """
-        teacher = cls._get_teacher(teacher_id)
+
+        teacher = cls._get_teacher(
+            tenant=tenant,
+            teacher_id=teacher_id,
+        )
 
         subjects = validated_data.pop(
             "subjects",
@@ -357,7 +393,8 @@ class TeacherService:
         if "department" in validated_data:
             validated_data["department"] = (
                 cls._validate_department(
-                    validated_data["department"]
+                    tenant=tenant,
+                    department=validated_data["department"],
                 )
             )
 
@@ -368,21 +405,24 @@ class TeacherService:
             )
 
             validated_subjects = cls._validate_subjects(
-                department,
-                subjects,
+                tenant=tenant,
+                department=department,
+                subjects=subjects,
             )
 
             teacher.subjects.set(
                 validated_subjects,
             )
+
         EDITABLE_FIELDS = {
-        "department",
-        "designation",
-        "qualification",
-        "specialization",
-        "experience_years",
-        "joining_date",
+            "department",
+            "designation",
+            "qualification",
+            "specialization",
+            "experience_years",
+            "joining_date",
         }
+
         for field in EDITABLE_FIELDS:
             if field in validated_data:
                 setattr(
@@ -390,19 +430,24 @@ class TeacherService:
                     field,
                     validated_data[field],
                 )
+
         teacher.save()
         return teacher
     @classmethod
     def change_teacher_status(
         cls,
+        tenant,
         teacher_id: int,
         is_active: bool,
     ) -> Teacher:
         """
-        Activate or deactivate a teacher.
+        Activate or deactivate a teacher
+        within the current tenant.
         """
+
         teacher = cls._get_teacher(
-            teacher_id,
+            tenant=tenant,
+            teacher_id=teacher_id,
         )
 
         teacher.is_active = is_active
@@ -412,18 +457,21 @@ class TeacherService:
                 "is_active",
             ]
         )
-
         return teacher
     @classmethod
     def delete_teacher(
         cls,
+        tenant,
         teacher_id: int,
     ) -> None:
         """
-        Soft delete a teacher profile.
+        Soft delete a teacher profile
+        within the current tenant.
         """
+
         teacher = cls._get_teacher(
-            teacher_id,
+            tenant=tenant,
+            teacher_id=teacher_id,
         )
 
         teacher.is_deleted = True

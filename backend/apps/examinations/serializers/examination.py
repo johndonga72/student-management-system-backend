@@ -30,25 +30,6 @@ class ExaminationCreateSerializer(serializers.ModelSerializer):
             "passing_marks",
             "instructions",
         )
-        validators = [
-            UniqueTogetherValidator(
-                queryset=Examination.objects.filter(
-                    is_deleted=False,
-                ),
-                fields=(
-                    "subject",
-                    "exam_type",
-                    "semester",
-                    "academic_year",
-                ),
-                message=(
-                    "An examination with the same subject, "
-                    "exam type, semester, and academic year "
-                    "already exists."
-                ),
-            )
-        ]
-
 
 class ExaminationUpdateSerializer(serializers.ModelSerializer):
     """
@@ -69,7 +50,6 @@ class ExaminationUpdateSerializer(serializers.ModelSerializer):
             "passing_marks",
             "instructions",
         )
-
 class ExaminationStatusSerializer(serializers.ModelSerializer):
     """
     Serializer for changing examination status.

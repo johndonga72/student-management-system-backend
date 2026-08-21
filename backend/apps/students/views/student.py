@@ -276,7 +276,6 @@ class StudentStatusAPIView(APIView):
         request=StudentStatusSerializer,
         responses=StudentSerializer,
     )
-
     def patch(
         self,
         request,

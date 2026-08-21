@@ -18,12 +18,14 @@ class TeacherAdmin(admin.ModelAdmin):
         "experience_years",
         "joining_date",
         "is_active",
+        "tenant",
     )
     list_filter = (
         "department",
         "designation",
         "is_active",
         "is_deleted",
+        "tenant",
     )
     list_select_related = (
     "user",

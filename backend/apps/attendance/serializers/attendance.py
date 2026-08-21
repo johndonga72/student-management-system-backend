@@ -1,14 +1,16 @@
-"""
-Attendance serializers.
-This module contains serializers used for
-creating and updating attendance records.
-"""
 from rest_framework import serializers
-from rest_framework.validators import UniqueTogetherValidator
+
 from apps.attendance.models import Attendance
+from apps.students.models import Student
+from apps.subjects.models import Subject
+from apps.teachers.models import Teacher
+
 from .base import BaseAttendanceSerializer
 
-class AttendanceCreateSerializer(BaseAttendanceSerializer):
+
+class AttendanceCreateSerializer(
+    BaseAttendanceSerializer
+):
     """
     Serializer for creating attendance records.
     """
@@ -24,27 +26,59 @@ class AttendanceCreateSerializer(BaseAttendanceSerializer):
             "attendance_date",
             "remarks",
         )
-        validators = [
-            UniqueTogetherValidator(
-                queryset=Attendance.objects.all(),
-                fields=(
-                    "student",
-                    "subject",
-                    "attendance_date",
-                ),
-                message=(
-                    "Attendance has already been marked "
-                    "for this student on this date "
-                    "for the selected subject."
-                ),
+
+    def validate(self, attrs):
+        """
+        Validate that all related objects belong
+        to the current tenant.
+        """
+
+        tenant = self.context["tenant"]
+
+        student = attrs["student"]
+        teacher = attrs["teacher"]
+        subject = attrs["subject"]
+
+        if student.tenant_id != tenant.id:
+            raise serializers.ValidationError(
+                {
+                    "student": (
+                        "Selected student does not "
+                        "belong to the current tenant."
+                    )
+                }
             )
-        ]
-class AttendanceUpdateSerializer(BaseAttendanceSerializer):
+
+        if teacher.tenant_id != tenant.id:
+            raise serializers.ValidationError(
+                {
+                    "teacher": (
+                        "Selected teacher does not "
+                        "belong to the current tenant."
+                    )
+                }
+            )
+
+        if subject.tenant_id != tenant.id:
+            raise serializers.ValidationError(
+                {
+                    "subject": (
+                        "Selected subject does not "
+                        "belong to the current tenant."
+                    )
+                }
+            )
+
+        return attrs
+class AttendanceUpdateSerializer(
+    BaseAttendanceSerializer
+):
     """
     Serializer for updating attendance records.
     """
     class Meta(BaseAttendanceSerializer.Meta):
         model = Attendance
+
         fields = (
             "status",
             "remarks",
