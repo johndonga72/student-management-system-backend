@@ -4,24 +4,36 @@ from apps.subjects.models import Subject
 from rest_framework.exceptions import ValidationError
 from django.db.models import QuerySet
 from django.db import transaction
+from apps.tenants.models import Tenant
 class ExaminationService:
     """
     Service class for Examination business logic.
     """
-# Private methods
     @classmethod
-    def _get_examination(cls, examination_id: int) -> Examination:
+    def _get_examination(
+        cls,
+        tenant: Tenant,
+        examination_id: int,
+    ) -> Examination:
         """
-        Retrieve an examination by ID.
+        Retrieve an examination belonging to the current tenant.
+
+        Args:
+            tenant: Current tenant.
+            examination_id: Examination ID.
+
+        Returns:
+            Examination: Matching examination.
 
         Raises:
-            ExaminationNotFoundException:
-                If the examination does not exist.
+            ValidationError: If the examination does not exist
+                within the current tenant.
         """
 
         try:
             return (
                 Examination.objects
+                .for_tenant(tenant)
                 .select_related(
                     "subject",
                     "teacher__user",
@@ -32,67 +44,86 @@ class ExaminationService:
                 )
             )
 
-        except Examination.DoesNotExist:
+        except Examination.DoesNotExist as exc:
             raise ValidationError(
-          "exam doesnot found."
-    )
+                {
+                    "examination": (
+                        "Examination does not exist."
+                    ),
+                }
+            ) from exc
+
     @classmethod
-    def _validate_teacher(cls, teacher_id: int) -> Teacher:
+    def _validate_teacher(
+        cls,
+        tenant: Tenant,
+        teacher_id: int,
+    ) -> Teacher:
         """
-        Validate that the teacher exists.
-
-        Args:
-            teacher_id: Teacher ID.
-
-        Returns:
-            Teacher object.
-
-        Raises:
-            ValidationError:
-                If the teacher does not exist.
+        Validate that the teacher belongs to
+        the current tenant.
         """
 
         try:
-            return Teacher.objects.select_related(
-                "user",
-                "department",
-            ).get(
-                id=teacher_id,
-                is_deleted=False,
+            return (
+                Teacher.objects
+                .for_tenant(tenant)
+                .select_related(
+                    "user",
+                    "department",
+                )
+                .prefetch_related(
+                    "subjects",
+                )
+                .get(
+                    id=teacher_id,
+                    is_deleted=False,
+                )
             )
 
-        except Teacher.DoesNotExist:
+        except Teacher.DoesNotExist as exc:
             raise ValidationError(
-                "Teacher not found."
-            )
+                {
+                    "teacher": (
+                        "Teacher does not exist "
+                        "for the current tenant."
+                    ),
+                }
+            ) from exc
+
     @classmethod
-    def _validate_subject(cls, subject_id: int) -> Subject:
+    def _validate_subject(
+        cls,
+        tenant: Tenant,
+        subject_id: int,
+    ) -> Subject:
         """
-        Validate that the subject exists.
-
-        Args:
-            subject_id: Subject ID.
-
-        Returns:
-            Subject object.
-
-        Raises:
-            ValidationError:
-                If the subject does not exist.
+        Validate that the subject belongs to
+        the current tenant.
         """
 
         try:
-            return Subject.objects.select_related(
-                "course__department",
-            ).get(
-                id=subject_id,
-                is_deleted=False,
+            return (
+                Subject.objects
+                .for_tenant(tenant)
+                .select_related(
+                    "course__department",
+                )
+                .get(
+                    id=subject_id,
+                    is_deleted=False,
+                )
             )
 
-        except Subject.DoesNotExist:
+        except Subject.DoesNotExist as exc:
             raise ValidationError(
-                "Subject not found."
-            )
+                {
+                    "subject": (
+                        "Subject does not exist "
+                        "for the current tenant."
+                    ),
+                }
+            ) from exc
 
     @classmethod
     def _validate_teacher_subject(
@@ -101,41 +132,41 @@ class ExaminationService:
         subject: Subject,
     ) -> None:
         """
-        Validate that the teacher is assigned to the selected subject.
-
-        Args:
-            teacher: Teacher instance.
-            subject: Subject instance.
-
-        Raises:
-            ValidationError:
-                If the teacher is not assigned to the subject.
+        Validate that the teacher is assigned
+        to the selected subject.
         """
 
-        if not teacher.subjects.filter(id=subject.id).exists():
+        if not teacher.subjects.filter(
+            id=subject.id,
+        ).exists():
             raise ValidationError(
-                "The selected teacher is not assigned to this subject."
+                {
+                    "subject": (
+                        "The selected teacher is not "
+                        "assigned to this subject."
+                    ),
+                }
             )
+
     @classmethod
     def _validate_maximum_marks(
         cls,
         maximum_marks: int,
     ) -> None:
         """
-        Validate maximum marks.
-
-        Args:
-            maximum_marks: Maximum marks for the examination.
-
-        Raises:
-            ValidationError:
-                If maximum marks are less than or equal to zero.
+        Validate maximum examination marks.
         """
 
         if maximum_marks <= 0:
             raise ValidationError(
-                "Maximum marks must be greater than zero."
+                {
+                    "maximum_marks": (
+                        "Maximum marks must be "
+                        "greater than zero."
+                    ),
+                }
             )
+
     @classmethod
     def _validate_passing_marks(
         cls,
@@ -144,25 +175,28 @@ class ExaminationService:
     ) -> None:
         """
         Validate passing marks.
-
-        Args:
-            maximum_marks: Maximum marks for the examination.
-            passing_marks: Passing marks for the examination.
-
-        Raises:
-            ValidationError:
-                If passing marks are invalid.
         """
 
         if passing_marks < 0:
             raise ValidationError(
-                "Passing marks cannot be negative."
+                {
+                    "passing_marks": (
+                        "Passing marks cannot "
+                        "be negative."
+                    ),
+                }
             )
 
         if passing_marks > maximum_marks:
             raise ValidationError(
-                "Passing marks cannot exceed maximum marks."
+                {
+                    "passing_marks": (
+                        "Passing marks cannot exceed "
+                        "maximum marks."
+                    ),
+                }
             )
+
     @classmethod
     def _validate_exam_date(
         cls,
@@ -170,135 +204,150 @@ class ExaminationService:
     ) -> None:
         """
         Validate the examination date.
-
-        Args:
-            exam_date: Examination date.
-
-        Raises:
-            ValidationError:
-                If the examination date is not provided.
         """
 
         if exam_date is None:
             raise ValidationError(
-                "Examination date is required."
+                {
+                    "exam_date": (
+                        "Examination date is required."
+                    ),
+                }
             )
+
     @classmethod
     def _check_duplicate_examination(
         cls,
+        tenant: Tenant,
         *,
-        subject,
+        subject: Subject,
         exam_type,
         semester,
-        academic_year,
+        academic_year: str,
         exclude_id: int = None,
     ) -> None:
         """
-        Validate that the examination does not already exist.
-
-        Args:
-            subject: Subject instance.
-            exam_type: Examination type.
-            semester: Semester.
-            academic_year: Academic year.
-            exclude_id: Examination ID to exclude during update.
-
-        Raises:
-            ValidationError:
-                If a duplicate examination already exists.
+        Check for duplicate examination
+        within the current tenant only.
         """
 
-        queryset = Examination.objects.filter(
-            subject=subject,
-            exam_type=exam_type,
-            semester=semester,
-            academic_year=academic_year,
-            is_deleted=False,
+        queryset = (
+            Examination.objects
+            .for_tenant(tenant)
+            .filter(
+                subject=subject,
+                exam_type=exam_type,
+                semester=semester,
+                academic_year=academic_year,
+                is_deleted=False,
+            )
         )
 
-        if exclude_id:
-            queryset = queryset.exclude(id=exclude_id)
+        if exclude_id is not None:
+            queryset = queryset.exclude(
+                id=exclude_id,
+            )
 
         if queryset.exists():
             raise ValidationError(
-                "An examination with the same subject, exam type, semester, and academic year already exists."
+                {
+                    "examination": (
+                        "An examination with the same "
+                        "subject, exam type, semester, "
+                        "and academic year already exists "
+                        "for this tenant."
+                    ),
+                }
             )
-# Public methods
+# ==========================================================
+# Public Methods
+# ==========================================================
+
     @classmethod
-    def create_examination(cls, validated_data: dict) -> Examination:
+    @transaction.atomic
+    def create_examination(
+        cls,
+        tenant: Tenant,
+        validated_data: dict,
+    ) -> Examination:
         """
-        Create a new examination.
+        Create a new examination for the current tenant.
         """
 
-        with transaction.atomic():
+        teacher = cls._validate_teacher(
+            tenant=tenant,
+            teacher_id=validated_data["teacher"].id,
+        )
 
-            teacher = cls._validate_teacher(
-                validated_data["teacher"].id
-            )
+        subject = cls._validate_subject(
+            tenant=tenant,
+            subject_id=validated_data["subject"].id,
+        )
 
-            subject = cls._validate_subject(
-                validated_data["subject"].id
-            )
+        cls._validate_teacher_subject(
+            teacher=teacher,
+            subject=subject,
+        )
 
-            cls._validate_teacher_subject(
-                teacher,
-                subject,
-            )
+        cls._validate_maximum_marks(
+            validated_data["maximum_marks"],
+        )
 
-            cls._validate_maximum_marks(
-                validated_data["maximum_marks"]
-            )
+        cls._validate_passing_marks(
+            validated_data["maximum_marks"],
+            validated_data["passing_marks"],
+        )
 
-            cls._validate_passing_marks(
-                validated_data["maximum_marks"],
-                validated_data["passing_marks"],
-            )
+        cls._validate_exam_date(
+            validated_data["exam_date"],
+        )
 
-            cls._validate_exam_date(
-                validated_data["exam_date"]
-            )
+        cls._check_duplicate_examination(
+            tenant=tenant,
+            subject=subject,
+            exam_type=validated_data["exam_type"],
+            semester=validated_data["semester"],
+            academic_year=validated_data["academic_year"],
+        )
 
-            cls._check_duplicate_examination(
-                subject=subject,
-                exam_type=validated_data["exam_type"],
-                semester=validated_data["semester"],
-                academic_year=validated_data["academic_year"],
-            )
+        examination = Examination.objects.create(
+            tenant=tenant,
+            **validated_data,
+        )
 
-            examination = Examination.objects.create(
-                **validated_data
-            )
+        return examination
 
-            return examination
+
     @classmethod
     def get_examination_by_id(
         cls,
+        tenant: Tenant,
         examination_id: int,
     ) -> Examination:
         """
-        Retrieve an examination by ID.
-
-        Args:
-            examination_id: Examination ID.
-
-        Returns:
-            Examination object.
+        Retrieve an examination belonging to
+        the current tenant.
         """
 
         return cls._get_examination(
-            examination_id
-        )   
-    @classmethod
-    def list_examinations(cls) -> QuerySet[Examination]:
-        """
-        Retrieve all examinations.
+            tenant=tenant,
+            examination_id=examination_id,
+        )
 
-        Returns:
-            QuerySet[Examination]: List of examinations.
+
+    @classmethod
+    def list_examinations(
+        cls,
+        tenant: Tenant,
+    ) -> QuerySet[Examination]:
+        """
+        Retrieve all examinations belonging to
+        the current tenant.
         """
 
         return (
             Examination.objects
+            .for_tenant(tenant)
             .select_related(
                 "subject",
                 "teacher__user",
@@ -306,108 +355,149 @@ class ExaminationService:
             .filter(
                 is_deleted=False,
             )
-            .order_by("exam_date")
+            .order_by(
+                "exam_date",
+            )
         )
     @classmethod
+    @transaction.atomic
     def update_examination(
         cls,
+        tenant: Tenant,
         examination_id: int,
         validated_data: dict,
     ) -> Examination:
         """
-        Update an existing examination.
+        Update an existing examination belonging to
+        the current tenant.
+
+        Args:
+            tenant: Current tenant.
+            examination_id: Examination ID.
+            validated_data: Validated examination data.
+
+        Returns:
+            Examination: Updated examination.
         """
 
-        with transaction.atomic():
+        examination = cls._get_examination(
+            tenant=tenant,
+            examination_id=examination_id,
+        )
 
-            examination = cls._get_examination(
-                examination_id
+        teacher = cls._validate_teacher(
+            tenant=tenant,
+            teacher_id=validated_data["teacher"].id,
+        )
+
+        subject = cls._validate_subject(
+            tenant=tenant,
+            subject_id=validated_data["subject"].id,
+        )
+
+        cls._validate_teacher_subject(
+            teacher=teacher,
+            subject=subject,
+        )
+
+        cls._validate_maximum_marks(
+            validated_data["maximum_marks"],
+        )
+
+        cls._validate_passing_marks(
+            validated_data["maximum_marks"],
+            validated_data["passing_marks"],
+        )
+
+        cls._validate_exam_date(
+            validated_data["exam_date"],
+        )
+
+        cls._check_duplicate_examination(
+            tenant=tenant,
+            subject=subject,
+            exam_type=validated_data["exam_type"],
+            semester=validated_data["semester"],
+            academic_year=validated_data["academic_year"],
+            exclude_id=examination.id,
+        )
+
+        for field, value in validated_data.items():
+            setattr(
+                examination,
+                field,
+                value,
             )
 
-            teacher = cls._validate_teacher(
-                validated_data["teacher"].id
-            )
+        examination.save()
 
-            subject = cls._validate_subject(
-                validated_data["subject"].id
-            )
-
-            cls._validate_teacher_subject(
-                teacher,
-                subject,
-            )
-
-            cls._validate_maximum_marks(
-                validated_data["maximum_marks"]
-            )
-
-            cls._validate_passing_marks(
-                validated_data["maximum_marks"],
-                validated_data["passing_marks"],
-            )
-
-            cls._validate_exam_date(
-                validated_data["exam_date"]
-            )
-
-            cls._check_duplicate_examination(
-                subject=subject,
-                exam_type=validated_data["exam_type"],
-                semester=validated_data["semester"],
-                academic_year=validated_data["academic_year"],
-                exclude_id=examination.id,
-            )
-
-            for field, value in validated_data.items():
-                setattr(
-                    examination,
-                    field,
-                    value,
-                )
-
-            examination.save()
-
-            return examination
+        return examination
     @classmethod
+    @transaction.atomic
     def change_examination_status(
         cls,
+        tenant: Tenant,
         examination_id: int,
         status: str,
     ) -> Examination:
         """
-        Change examination status.
+        Change examination status for the current tenant.
+
+        Args:
+            tenant: Current tenant.
+            examination_id: Examination ID.
+            status: New examination status.
+
+        Returns:
+            Examination: Updated examination.
         """
 
-        with transaction.atomic():
+        examination = cls._get_examination(
+            tenant=tenant,
+            examination_id=examination_id,
+        )
 
-            examination = cls._get_examination(
-                examination_id
-            )
+        examination.status = status
 
-            examination.status = status
-            examination.save(
-                update_fields=["status"]
-            )
+        examination.save(
+            update_fields=[
+                "status",
+                "updated_at",
+            ],
+        )
 
-            return examination
+        return examination
     @classmethod
+    @transaction.atomic
     def delete_examination(
         cls,
+        tenant: Tenant,
         examination_id: int,
     ) -> Examination:
         """
-        Soft delete an examination.
+        Soft delete an examination belonging to
+        the current tenant.
+
+        Args:
+            tenant: Current tenant.
+            examination_id: Examination ID.
+
+        Returns:
+            Examination: Soft-deleted examination.
         """
 
-        with transaction.atomic():
+        examination = cls._get_examination(
+            tenant=tenant,
+            examination_id=examination_id,
+        )
 
-            examination = cls._get_examination(
-                examination_id
-            )
+        examination.is_deleted = True
 
-            examination.is_deleted = True
+        examination.save(
+            update_fields=[
+                "is_deleted",
+                "updated_at",
+            ],
+        )
 
-            examination.save(
-                update_fields=["is_deleted"]
-            )
         return examination

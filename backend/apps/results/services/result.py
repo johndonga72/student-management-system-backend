@@ -8,100 +8,170 @@ from apps.students.models.choices import StudentStatus
 from apps.examinations.models import Examination, ExaminationStatus
 from django.db.models import QuerySet
 from django.db import transaction
+from apps.tenants.models import Tenant
 from apps.results.models.choices import (
     ResultStatus,
     ResultRecordStatus,
 )
-
 class ResultService:
-    """
+   """
     Service layer for managing results.
     """
+
+    # ==========================================================
+    # Private Helper Methods
+    # ==========================================================
     @classmethod
     def _get_result(
         cls,
+        tenant: Tenant,
         result_id: int,
     ) -> Result:
         """
-        Retrieve a result by its ID.
+        Retrieve a result belonging to the current tenant.
 
         Args:
-            result_id (int):
+            tenant:
+                Current tenant.
+
+            result_id:
                 Result identifier.
 
         Returns:
             Result:
-                Result instance.
+                Tenant-scoped result instance.
 
         Raises:
             ValidationError:
-                If the result does not exist.
+                If the result does not exist
+                within the current tenant.
         """
 
         try:
-            return Result.objects.get(
-                id=result_id,
-                is_deleted=False,
+            return (
+                Result.objects
+                .for_tenant(tenant)
+                .select_related(
+                    "student__user",
+                    "examination__subject",
+                    "examination__teacher__user",
+                )
+                .get(
+                    id=result_id,
+                    is_deleted=False,
+                )
             )
 
-        except Result.DoesNotExist:
+        except Result.DoesNotExist as exc:
             raise ValidationError(
-                "Result not found."
-            )
+                {
+                    "result": (
+                        "Result not found."
+                    ),
+                }
+            ) from exc
+
     @classmethod
     def _validate_student(
         cls,
+        tenant: Tenant,
         student: Student,
     ) -> Student:
         """
-        Validate the student.
+        Validate that the student belongs to the
+        current tenant and is eligible for a result.
 
         Args:
-            student (Student):
+            tenant:
+                Current tenant.
+
+            student:
                 Student instance.
 
         Returns:
             Student:
-                Valid student instance.
+                Validated student.
 
         Raises:
             ValidationError:
-                If the student does not exist or is inactive.
+                If the student does not belong to
+                the tenant, is deleted, or is not approved.
         """
+
+        if student.tenant_id != tenant.id:
+            raise ValidationError(
+                {
+                    "student": (
+                        "Student does not belong "
+                        "to the current tenant."
+                    ),
+                }
+            )
 
         if student.is_deleted:
             raise ValidationError(
-                "Student not found."
+                {
+                    "student": (
+                        "Student not found."
+                    ),
+                }
             )
+
         if student.status != StudentStatus.APPROVED:
             raise ValidationError(
-                "Student is inactive."
+                {
+                    "student": (
+                        "Student is not approved."
+                    ),
+                }
             )
 
         return student
+
     @classmethod
     def _validate_examination(
         cls,
+        tenant: Tenant,
         examination: Examination,
     ) -> Examination:
         """
-        Validate the examination.
+        Validate that the examination belongs to the
+        current tenant and is active.
 
         Args:
-            examination_id (int):
-                Examination identifier.
+            tenant:
+                Current tenant.
+
+            examination:
+                Examination instance.
 
         Returns:
             Examination:
-                Valid examination instance.
+                Validated examination.
 
         Raises:
             ValidationError:
-                If the examination does not exist or is inactive.
+                If the examination does not belong
+                to the tenant, is deleted, or inactive.
         """
+
+        if examination.tenant_id != tenant.id:
+            raise ValidationError(
+                {
+                    "examination": (
+                        "Examination does not belong "
+                        "to the current tenant."
+                    ),
+                }
+            )
+
         if examination.is_deleted:
             raise ValidationError(
-                "Examination not found."
+                {
+                    "examination": (
+                        "Examination not found."
+                    ),
+                }
             )
 
         if (
@@ -109,10 +179,15 @@ class ResultService:
             != ExaminationStatus.ACTIVE
         ):
             raise ValidationError(
-                "Examination is inactive."
+                {
+                    "examination": (
+                        "Examination is inactive."
+                    ),
+                }
             )
 
-        return examination 
+        return examination
+
     @classmethod
     def _validate_obtained_marks(
         cls,
@@ -120,25 +195,44 @@ class ResultService:
         obtained_marks: int,
     ) -> None:
         """
-        Validate obtained marks.
+        Validate obtained marks against the
+        examination maximum marks.
 
         Args:
-            examination (Examination):
-                Valid examination instance.
+            examination:
+                Examination instance.
 
-            obtained_marks (int):
+            obtained_marks:
                 Marks obtained by the student.
 
         Raises:
             ValidationError:
-                If obtained marks exceed the
-                examination maximum marks.
+                If obtained marks exceed maximum marks.
         """
 
-        if obtained_marks > examination.maximum_marks:
+        if obtained_marks < 0:
             raise ValidationError(
-                "Obtained marks cannot exceed maximum marks."
+                {
+                    "obtained_marks": (
+                        "Obtained marks cannot "
+                        "be negative."
+                    ),
+                }
             )
+
+        if (
+            obtained_marks
+            > examination.maximum_marks
+        ):
+            raise ValidationError(
+                {
+                    "obtained_marks": (
+                        "Obtained marks cannot exceed "
+                        "maximum marks."
+                    ),
+                }
+            )
+
     @classmethod
     def _calculate_result_status(
         cls,
@@ -146,13 +240,14 @@ class ResultService:
         obtained_marks: int,
     ) -> ResultStatus:
         """
-        Calculate the student's result status.
+        Calculate PASS or FAIL based on the
+        examination passing marks.
 
         Args:
-            examination (Examination):
-                Valid examination instance.
+            examination:
+                Examination instance.
 
-            obtained_marks (int):
+            obtained_marks:
                 Marks obtained by the student.
 
         Returns:
@@ -160,40 +255,53 @@ class ResultService:
                 PASS or FAIL.
         """
 
-        if obtained_marks >= examination.passing_marks:
-            return choices.ResultStatus.PASS
-        return choices.ResultStatus.FAIL
-    
+        if (
+            obtained_marks
+            >= examination.passing_marks
+        ):
+            return ResultStatus.PASS
+
+        return ResultStatus.FAIL
+
     @classmethod
     def _check_duplicate_result(
         cls,
+        tenant: Tenant,
         student: Student,
         examination: Examination,
         result_id: int | None = None,
     ) -> None:
         """
-        Check whether a result already exists for the
-        given student and examination.
+        Check whether a result already exists
+        within the current tenant.
 
         Args:
-            student (Student):
-                Valid student instance.
+            tenant:
+                Current tenant.
 
-            examination (Examination):
-                Valid examination instance.
+            student:
+                Student instance.
 
-            result_id (int | None):
-                Current result identifier during update.
+            examination:
+                Examination instance.
+
+            result_id:
+                Current result ID during update.
 
         Raises:
             ValidationError:
-                If a duplicate result exists.
+                If a duplicate result exists
+                within the tenant.
         """
 
-        queryset = Result.objects.filter(
-            student=student,
-            examination=examination,
-            is_deleted=False,
+        queryset = (
+            Result.objects
+            .for_tenant(tenant)
+            .filter(
+                student=student,
+                examination=examination,
+                is_deleted=False,
+            )
         )
 
         if result_id is not None:
@@ -203,33 +311,33 @@ class ResultService:
 
         if queryset.exists():
             raise ValidationError(
-                "A result already exists for this student and examination."
+                {
+                    "result": (
+                        "A result already exists "
+                        "for this student and examination."
+                    ),
+                }
             )
 # public methods
     @classmethod
     @transaction.atomic
     def create_result(
         cls,
+        tenant,
         validated_data: dict,
     ) -> Result:
         """
-        Create a new result.
-
-        Args:
-            validated_data (dict):
-                Validated serializer data.
-
-        Returns:
-            Result:
-                Newly created result instance.
+        Create a new result within the current tenant.
         """
 
         student = cls._validate_student(
-            validated_data["student"]
+            tenant=tenant,
+            student=validated_data["student"],
         )
 
         examination = cls._validate_examination(
-            validated_data["examination"]
+            tenant=tenant,
+            examination=validated_data["examination"],
         )
 
         cls._validate_obtained_marks(
@@ -238,8 +346,9 @@ class ResultService:
         )
 
         cls._check_duplicate_result(
-            student,
-            examination,
+            tenant=tenant,
+            student=student,
+            examination=examination,
         )
 
         result_status = cls._calculate_result_status(
@@ -247,19 +356,26 @@ class ResultService:
             validated_data["obtained_marks"],
         )
 
-        return Result.objects.create(
-            student=student,
-            examination=examination,
-            obtained_marks=validated_data["obtained_marks"],
-            result_status=result_status,
-            remarks=validated_data.get(
-                "remarks",
-                "",
-            ),
+        return (
+            Result.objects
+            .for_tenant(tenant)
+            .create(
+                student=student,
+                examination=examination,
+                obtained_marks=validated_data[
+                    "obtained_marks"
+                ],
+                result_status=result_status,
+                remarks=validated_data.get(
+                    "remarks",
+                    "",
+                ),
+            )
         )
     @classmethod
     def get_result_by_id(
         cls,
+        tenant,
         result_id: int,
     ) -> Result:
         """
@@ -273,22 +389,24 @@ class ResultService:
             Result:
                 Result instance.
         """
-
-        return cls._get_result(result_id)
+        return cls._get_result(
+            tenant=tenant,
+            result_id=result_id,
+        )
     @classmethod
     def list_results(
         cls,
+        tenant,
     ) -> QuerySet[Result]:
         """
-        Retrieve all active results.
-
-        Returns:
-            QuerySet[Result]:
-                Collection of result records.
+        Retrieve all active results
+        belonging to the current tenant.
         """
 
         return (
-            Result.objects.filter(
+            Result.objects
+            .for_tenant(tenant)
+            .filter(
                 is_deleted=False,
             )
             .select_related(
@@ -297,22 +415,29 @@ class ResultService:
                 "examination",
                 "examination__subject",
             )
+            .order_by(
+                "-created_at",
+            )
         )
     @classmethod
     @transaction.atomic
     def update_result(
         cls,
+        tenant,
         result_id: int,
         validated_data: dict,
     ) -> Result:
         """
-        Update an existing result.
+        Update an existing result within the current tenant.
 
         Args:
-            result_id (int):
+            tenant:
+                Current tenant.
+
+            result_id:
                 Result identifier.
 
-            validated_data (dict):
+            validated_data:
                 Validated serializer data.
 
         Returns:
@@ -320,14 +445,19 @@ class ResultService:
                 Updated result instance.
         """
 
-        result = cls._get_result(result_id)
+        result = cls._get_result(
+            tenant=tenant,
+            result_id=result_id,
+        )
 
         student = cls._validate_student(
-            validated_data["student"]
+            tenant=tenant,
+            student=validated_data["student"],
         )
 
         examination = cls._validate_examination(
-            validated_data["examination"]
+            tenant=tenant,
+            examination=validated_data["examination"],
         )
 
         cls._validate_obtained_marks(
@@ -336,6 +466,7 @@ class ResultService:
         )
 
         cls._check_duplicate_result(
+            tenant=tenant,
             student=student,
             examination=examination,
             result_id=result.id,
@@ -343,42 +474,54 @@ class ResultService:
 
         result.student = student
         result.examination = examination
-        result.obtained_marks = validated_data["obtained_marks"]
-        result.result_status = cls._calculate_result_status(
-            examination,
-            validated_data["obtained_marks"],
+        result.obtained_marks = validated_data[
+            "obtained_marks"
+        ]
+
+        result.result_status = (
+            cls._calculate_result_status(
+                examination,
+                validated_data["obtained_marks"],
+            )
         )
+
         result.remarks = validated_data.get(
             "remarks",
             "",
         )
 
         result.save(
-        update_fields=[
-        "student",
-        "examination",
-        "obtained_marks",
-        "result_status",
-        "remarks",
-        "updated_at",
-       ])
+            update_fields=[
+                "student",
+                "examination",
+                "obtained_marks",
+                "result_status",
+                "remarks",
+                "updated_at",
+            ],
+        )
 
         return result
     @classmethod
     @transaction.atomic
     def change_result_status(
         cls,
+        tenant,
         result_id: int,
         status: choices.ResultRecordStatus,
     ) -> Result:
         """
-        Update the status of a result.
+        Update the status of a result
+        within the current tenant.
 
         Args:
-            result_id (int):
+            tenant:
+                Current tenant.
+
+            result_id:
                 Result identifier.
 
-            status (ResultRecordStatus):
+            status:
                 New result record status.
 
         Returns:
@@ -386,7 +529,10 @@ class ResultService:
                 Updated result instance.
         """
 
-        result = cls._get_result(result_id)
+        result = cls._get_result(
+            tenant=tenant,
+            result_id=result_id,
+        )
 
         result.status = status
 
@@ -394,7 +540,7 @@ class ResultService:
             update_fields=[
                 "status",
                 "updated_at",
-            ]
+            ],
         )
 
         return result
@@ -402,17 +548,24 @@ class ResultService:
     @transaction.atomic
     def delete_result(
         cls,
+        tenant,
         result_id: int,
     ) -> None:
         """
-        Soft delete a result.
+        Soft delete a result within the current tenant.
 
         Args:
-            result_id (int):
+            tenant:
+                Current tenant.
+
+            result_id:
                 Result identifier.
         """
 
-        result = cls._get_result(result_id)
+        result = cls._get_result(
+            tenant=tenant,
+            result_id=result_id,
+        )
 
         result.is_deleted = True
 
@@ -420,5 +573,5 @@ class ResultService:
             update_fields=[
                 "is_deleted",
                 "updated_at",
-            ]
+            ],
         )

@@ -54,10 +54,8 @@ class ExaminationStatusSerializer(serializers.ModelSerializer):
     """
     Serializer for changing examination status.
     """
-
     class Meta:
         model = Examination
-
         fields = (
             "status",
         )
