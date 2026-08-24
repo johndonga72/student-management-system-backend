@@ -14,7 +14,7 @@ from apps.results.models.choices import (
     ResultRecordStatus,
 )
 class ResultService:
-   """
+    """
     Service layer for managing results.
     """
 
@@ -61,7 +61,6 @@ class ResultService:
                     is_deleted=False,
                 )
             )
-
         except Result.DoesNotExist as exc:
             raise ValidationError(
                 {
@@ -70,7 +69,6 @@ class ResultService:
                     ),
                 }
             ) from exc
-
     @classmethod
     def _validate_student(
         cls,
@@ -107,7 +105,6 @@ class ResultService:
                     ),
                 }
             )
-
         if student.is_deleted:
             raise ValidationError(
                 {
@@ -116,7 +113,6 @@ class ResultService:
                     ),
                 }
             )
-
         if student.status != StudentStatus.APPROVED:
             raise ValidationError(
                 {
@@ -125,9 +121,7 @@ class ResultService:
                     ),
                 }
             )
-
         return student
-
     @classmethod
     def _validate_examination(
         cls,
@@ -137,24 +131,19 @@ class ResultService:
         """
         Validate that the examination belongs to the
         current tenant and is active.
-
         Args:
             tenant:
                 Current tenant.
-
             examination:
                 Examination instance.
-
         Returns:
             Examination:
                 Validated examination.
-
         Raises:
             ValidationError:
                 If the examination does not belong
                 to the tenant, is deleted, or inactive.
         """
-
         if examination.tenant_id != tenant.id:
             raise ValidationError(
                 {
@@ -164,7 +153,6 @@ class ResultService:
                     ),
                 }
             )
-
         if examination.is_deleted:
             raise ValidationError(
                 {
@@ -173,7 +161,6 @@ class ResultService:
                     ),
                 }
             )
-
         if (
             examination.status
             != ExaminationStatus.ACTIVE
@@ -185,9 +172,7 @@ class ResultService:
                     ),
                 }
             )
-
         return examination
-
     @classmethod
     def _validate_obtained_marks(
         cls,
