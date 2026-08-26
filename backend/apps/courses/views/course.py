@@ -1,14 +1,11 @@
 """
 API views for course-related operations.
 """
-
 from __future__ import annotations
-
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from apps.core.permissions import IsAdminRole
 from apps.courses.serializers import (
     CourseCreateSerializer,
@@ -17,19 +14,16 @@ from apps.courses.serializers import (
     CourseStatusSerializer,
 )
 from apps.courses.services import CourseService
-from drf_spectacular.utils import extend_schema
-
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 
 class CourseListCreateAPIView(APIView):
     """
     API view for listing and creating courses.
     """
-
     def get_permissions(self):
         """
         Assign permissions based on request method.
         """
-
         if self.request.method == "POST":
             return [
                 IsAuthenticated(),
@@ -39,7 +33,9 @@ class CourseListCreateAPIView(APIView):
         return [
             IsAuthenticated(),
         ]
-
+    @extend_schema(
+        responses=CourseSerializer,
+    )
     def get(
         self,
         request,
@@ -131,7 +127,9 @@ class CourseRetrieveUpdateDestroyAPIView(APIView):
         return [
             IsAuthenticated(),
         ]
-
+    @extend_schema(
+        responses=CourseSerializer,
+    )
     def get(
         self,
         request,
@@ -203,8 +201,14 @@ class CourseRetrieveUpdateDestroyAPIView(APIView):
                 "data": response_serializer.data,
             },
             status=status.HTTP_200_OK,
-        )
-
+            )
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                description="Course deleted successfully.",
+            ),
+        },
+    )
     def delete(
         self,
         request,

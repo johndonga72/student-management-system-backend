@@ -2,14 +2,14 @@
 Subject API views.
 
 This module contains API views for managing subjects.
-"""
 
+"""
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.core.permissions import IsAdminRole
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from apps.subjects.serializers import (
     SubjectCreateSerializer,
     SubjectSerializer,
@@ -17,13 +17,10 @@ from apps.subjects.serializers import (
     SubjectUpdateSerializer,
 )
 from apps.subjects.services import SubjectService
-
-
 class SubjectAPIView(APIView):
     """
     API view for creating, retrieving, and updating subjects.
     """
-
     permission_classes = [
         IsAuthenticated,
         IsAdminRole,
@@ -67,7 +64,9 @@ class SubjectAPIView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
-
+    @extend_schema(
+        responses=SubjectSerializer,
+    )
     def get(self, request, subject_id: int):
         """
         Retrieve a subject by ID.
@@ -100,7 +99,6 @@ class SubjectAPIView(APIView):
         """
         Update an existing subject.
         """
-
         serializer = SubjectUpdateSerializer(
             data=request.data,
             partial=True,
@@ -108,7 +106,6 @@ class SubjectAPIView(APIView):
                 "tenant": request.tenant,
             },
         )
-
         serializer.is_valid(
             raise_exception=True,
         )
@@ -134,7 +131,6 @@ class SubjectAPIView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
 class SubjectListAPIView(APIView):
     """
     API view for listing subjects.
@@ -144,7 +140,9 @@ class SubjectListAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+        responses=SubjectSerializer,
+    )
     def get(self, request):
         """
         Retrieve all subjects for the current tenant.
@@ -226,7 +224,13 @@ class SubjectDeleteAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+        responses={
+            204: OpenApiResponse(
+                description="Subject deleted successfully.",
+            ),
+        },
+    )
     def delete(self, request, subject_id: int):
         """
         Soft delete a subject.

@@ -4,7 +4,7 @@ Teacher API views.
 This module contains API views for managing
 teacher operations.
 """
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -71,6 +71,9 @@ class TeacherAPIView(APIView):
             response_serializer.data,
             status=status.HTTP_201_CREATED,
         )
+    @extend_schema(
+    responses=TeacherSerializer,
+     )
 
     def get(
         self,
@@ -81,7 +84,6 @@ class TeacherAPIView(APIView):
         Retrieve teacher information
         within the current tenant.
         """
-
         service = self.get_service()
 
         # ---------------------------------------------
@@ -170,7 +172,9 @@ class TeacherListAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+    responses=TeacherSerializer,
+)
     @staticmethod
     def get_service() -> TeacherService:
         """
@@ -269,6 +273,13 @@ class TeacherDeleteAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
+    @extend_schema(
+    responses={
+        200: OpenApiResponse(
+            description="Teacher deleted successfully.",
+        ),
+    },
+)
     @staticmethod
     def get_service() -> TeacherService:
         """

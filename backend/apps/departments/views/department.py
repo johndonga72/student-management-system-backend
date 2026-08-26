@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.core.permissions import IsAdminRole
 from apps.departments.models import Department
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from apps.departments.serializers import (
     DepartmentCreateSerializer,
     DepartmentSerializer,
@@ -68,7 +68,9 @@ class DepartmentListAPIView(APIView):
     permission_classes = [
         IsAuthenticated,
     ]
-
+    @extend_schema(
+        responses=DepartmentSerializer,
+    )
     def get(self, request, *args, **kwargs):
         """
         Retrieve all departments for the current tenant.
@@ -97,7 +99,9 @@ class DepartmentDetailAPIView(APIView):
     permission_classes = [
         IsAuthenticated,
     ]
-
+    @extend_schema(
+        responses=DepartmentSerializer,
+    )
     def get(
         self,
         request,
@@ -252,7 +256,13 @@ class DepartmentDeleteAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                description="Department deleted successfully.",
+            ),
+        },
+    )
     def delete(
         self,
         request,

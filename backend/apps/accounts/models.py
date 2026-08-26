@@ -1,7 +1,6 @@
 # Create your models here.
 """
 Database models for the Accounts application.
-
 This module defines the custom user model used throughout the
 Student Management System.
 """

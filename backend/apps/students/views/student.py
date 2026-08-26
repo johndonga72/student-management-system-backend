@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.core.permissions import IsAdminRole
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from apps.students.serializers import (
     StudentApprovalSerializer,
     StudentCreateSerializer,
@@ -36,21 +36,17 @@ class StudentProfileAPIView(APIView):
         """
         Create a student profile.
         """
-
         serializer = StudentCreateSerializer(
             data=request.data,
         )
-
         serializer.is_valid(
             raise_exception=True,
         )
-
         student = StudentService.create_student_profile(
             tenant=request.tenant,
             user=request.user,
             validated_data=serializer.validated_data,
         )
-
         response_serializer = StudentSerializer(
             student,
         )
@@ -64,7 +60,9 @@ class StudentProfileAPIView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
-
+    @extend_schema(
+        responses=StudentSerializer,
+    )
     def get(
         self,
         request,
@@ -151,7 +149,9 @@ class StudentListAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+        responses=StudentSerializer,
+    )
     def get(
         self,
         request,
@@ -326,7 +326,13 @@ class StudentDeleteAPIView(APIView):
         IsAuthenticated,
         IsAdminRole,
     ]
-
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                description="Student deleted successfully.",
+            ),
+        },
+    )
     def delete(
         self,
         request,
@@ -349,4 +355,3 @@ class StudentDeleteAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
