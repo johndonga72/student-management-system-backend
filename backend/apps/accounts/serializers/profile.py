@@ -26,7 +26,6 @@ class UserSerializer(serializers.ModelSerializer):
         source="tenant.code",
         read_only=True,
     )
-
     class Meta:
         """
         Metadata configuration for the UserSerializer.

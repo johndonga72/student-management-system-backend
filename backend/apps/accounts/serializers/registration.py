@@ -11,7 +11,6 @@ from apps.accounts.models import CustomUser, UserRole
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
     Serializer for student self-registration.
-
     This serializer allows public users to create only
     student accounts. The user role is assigned automatically
     by the backend.
