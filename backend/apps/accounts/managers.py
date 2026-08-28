@@ -4,14 +4,10 @@ Custom managers for the Accounts application.
 This module defines the custom manager responsible for creating
 regular users and superusers for the CustomUser model.
 """
-
 from __future__ import annotations
-
 from typing import Any
-
 from django.contrib.auth.base_user import BaseUserManager
 from django.db import models
-
 
 class CustomUserQuerySet(models.QuerySet):
     """

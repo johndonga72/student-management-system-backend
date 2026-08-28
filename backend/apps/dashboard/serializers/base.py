@@ -11,8 +11,7 @@ class AcademicSummarySerializer(serializers.Serializer):
     total_teachers = serializers.IntegerField()
     total_departments = serializers.IntegerField()
     total_courses = serializers.IntegerField()
-    total_subjects = serializers.IntegerField()
-    
+    total_subjects = serializers.IntegerField()   
 class AttendanceSummarySerializer(serializers.Serializer):
     """
     Attendance summary statistics.

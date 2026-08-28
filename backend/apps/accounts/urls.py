@@ -1,6 +1,5 @@
 """
 URL configuration for the accounts module.
-
 This module defines all API endpoints related to
 authentication and user accounts.
 """

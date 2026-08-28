@@ -7,7 +7,7 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from apps.courses.models import Course
-
+from drf_spectacular.utils import extend_schema_field
 
 class BaseCourseSerializer(serializers.ModelSerializer):
     """
@@ -93,43 +93,42 @@ class BaseCourseSerializer(serializers.ModelSerializer):
         """
         Validate course code.
         """
-
         value = value.strip().upper()
-
         if not value:
             raise serializers.ValidationError(
                 "Course code cannot be empty."
             )
-
         return value
-
     def validate_credits(self, value):
         """
         Validate course credits.
         """
-
         if value <= 0:
             raise serializers.ValidationError(
                 "Credits must be greater than zero."
             )
-
         return value
-
 
 class CourseCreateSerializer(BaseCourseSerializer):
     """
     Serializer for creating a course.
     """
-
     pass
-
 
 class CourseUpdateSerializer(BaseCourseSerializer):
     """
     Serializer for updating a course.
     """
-
     pass
+
+class DepartmentDetailSerializer(serializers.Serializer):
+    """
+    Serializer for department details
+    returned inside a course.
+    """
+
+    id = serializers.IntegerField()
+    name = serializers.CharField()
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -153,7 +152,7 @@ class CourseSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-
+    @extend_schema_field(DepartmentDetailSerializer)
     def get_department(self, obj):
         """
         Return department details.

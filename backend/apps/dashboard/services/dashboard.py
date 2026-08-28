@@ -1,7 +1,6 @@
 """
 Dashboard service layer.
 """
-
 from django.db.models import Count
 from django.utils import timezone
 from apps.accounts.models import UserRole
@@ -19,45 +18,72 @@ class DashboardService:
     """
 # private helper function
     @classmethod
-    def _get_academic_summary(cls) -> dict:
+    def _get_academic_summary(
+        cls,
+        tenant,
+    ) -> dict:
         """
-        Retrieve overall academic summary statistics.
+        Retrieve academic summary statistics
+        for the current tenant.
         """
+
         return {
-            "total_students": Student.objects.count(),
-            "total_teachers": Teacher.objects.count(),
-            "total_departments": Department.objects.count(),
-            "total_courses": Course.objects.count(),
-            "total_subjects": Subject.objects.count(),
+            "total_students": Student.objects.filter(
+                tenant=tenant,
+            ).count(),
+
+            "total_teachers": Teacher.objects.filter(
+                tenant=tenant,
+            ).count(),
+
+            "total_departments": Department.objects.filter(
+                tenant=tenant,
+            ).count(),
+
+            "total_courses": Course.objects.filter(
+                tenant=tenant,
+            ).count(),
+
+            "total_subjects": Subject.objects.filter(
+                tenant=tenant,
+            ).count(),
         }
     @classmethod
-    def _get_attendance_summary(cls) -> dict:
+    def _get_attendance_summary(
+        cls,
+        tenant,
+    ) -> dict:
         """
-        Retrieve today's attendance summary statistics.
+        Retrieve today's attendance summary statistics
+        for the current tenant.
         """
 
         today = timezone.localdate()
 
         attendance_queryset = Attendance.objects.filter(
-            attendance_date=today
+            tenant=tenant,
+            attendance_date=today,
         )
 
         total_attendance = attendance_queryset.count()
 
         present_count = attendance_queryset.filter(
-            status=AttendanceStatus.PRESENT
+            status=AttendanceStatus.PRESENT,
         ).count()
 
         absent_count = attendance_queryset.filter(
-            status=AttendanceStatus.ABSENT
+            status=AttendanceStatus.ABSENT,
         ).count()
 
         late_count = attendance_queryset.filter(
-            status=AttendanceStatus.LATE
+            status=AttendanceStatus.LATE,
         ).count()
 
         attendance_percentage = (
-            round((present_count / total_attendance) * 100, 2)
+            round(
+                (present_count / total_attendance) * 100,
+                2,
+            )
             if total_attendance > 0
             else 0.0
         )
@@ -70,13 +96,20 @@ class DashboardService:
             "attendance_percentage": attendance_percentage,
         }
     @classmethod
-    def _get_recent_activity(cls) -> dict:
+    def _get_recent_activity(
+        cls,
+        tenant,
+    ) -> dict:
         """
-        Retrieve recent activity across the system.
+        Retrieve recent activity for the current tenant.
         """
 
         recent_students = (
             Student.objects
+            .filter(
+                tenant=tenant,
+                is_deleted=False,
+            )
             .select_related("user")
             .order_by("-created_at")[:5]
             .values(
@@ -88,6 +121,10 @@ class DashboardService:
 
         recent_teachers = (
             Teacher.objects
+            .filter(
+                tenant=tenant,
+                is_deleted=False,
+            )
             .select_related("user")
             .order_by("-created_at")[:5]
             .values(
@@ -99,6 +136,10 @@ class DashboardService:
 
         recent_subjects = (
             Subject.objects
+            .filter(
+                tenant=tenant,
+                is_deleted=False,
+            )
             .order_by("-created_at")[:5]
             .values(
                 "subject_code",
@@ -112,29 +153,82 @@ class DashboardService:
             "recent_teachers": list(recent_teachers),
             "recent_subjects": list(recent_subjects),
         }
-# public methods
+    # Public methods
+
     @classmethod
-    def get_admin_dashboard(cls, user) -> dict:
+    def get_admin_dashboard(
+        cls,
+        user,
+        tenant,
+    ) -> dict:
         """
-        Retrieve Admin Dashboard statistics.
+        Retrieve Admin Dashboard statistics
+        for the current tenant.
+
+        Args:
+            user:
+                Authenticated user.
+
+            tenant:
+                Current tenant.
+
+        Returns:
+            dict:
+                Tenant-specific dashboard statistics.
         """
 
-        academic_summary = cls._get_academic_summary()
+        academic_summary = cls._get_academic_summary(
+            tenant=tenant,
+        )
 
-        attendance_summary = cls._get_attendance_summary()
+        attendance_summary = cls._get_attendance_summary(
+            tenant=tenant,
+        )
 
-        recent_activity = cls._get_recent_activity()
+        recent_activity = cls._get_recent_activity(
+            tenant=tenant,
+        )
 
         return {
             "academic_summary": academic_summary,
             "attendance_summary": attendance_summary,
             "recent_activity": recent_activity,
         }
+
+
     @classmethod
-    def get_dashboard(cls, user) -> dict:
+    def get_dashboard(
+        cls,
+        user,
+        tenant,
+    ) -> dict:
         """
-        Retrieve dashboard based on the authenticated user's role.
+        Retrieve dashboard based on the authenticated
+        user's role and current tenant.
+
+        Args:
+            user:
+                Authenticated user.
+
+            tenant:
+                Current tenant.
+
+        Returns:
+            dict:
+                Tenant-specific dashboard data.
+
+        Raises:
+            ValueError:
+                If the dashboard is not available
+                for the user's role.
         """
+
         if user.role == UserRole.ADMIN:
-            return cls.get_admin_dashboard(user)
-        raise ValueError("Dashboard is not available for this user role.")
+            return cls.get_admin_dashboard(
+                user=user,
+                tenant=tenant,
+            )
+
+        raise ValueError(
+            "Dashboard is not available for this user role."
+        )
