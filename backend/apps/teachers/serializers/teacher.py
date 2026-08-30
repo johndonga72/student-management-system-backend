@@ -55,27 +55,22 @@ class TeacherCreateSerializer(serializers.ModelSerializer):
 
         tenant = self.context.get("tenant")
 
-        if tenant is None:
-            raise serializers.ValidationError(
-                "Tenant context is required."
+        if tenant is not None:
+            self.fields["department"].queryset = (
+                Department.objects.filter(
+                    tenant=tenant,
+                    is_active=True,
+                    is_deleted=False,
+                )
             )
 
-        self.fields["department"].queryset = (
-            Department.objects.filter(
-                tenant=tenant,
-                is_active=True,
-                is_deleted=False,
+            self.fields["subjects"].queryset = (
+                Subject.objects.filter(
+                    course__tenant=tenant,
+                    is_active=True,
+                    is_deleted=False,
+                )
             )
-        )
-
-        self.fields["subjects"].queryset = (
-            Subject.objects.filter(
-                course__tenant=tenant,
-                is_active=True,
-                is_deleted=False,
-            )
-        )
-
 
 class TeacherUpdateSerializer(serializers.ModelSerializer):
     """
@@ -115,27 +110,22 @@ class TeacherUpdateSerializer(serializers.ModelSerializer):
 
         tenant = self.context.get("tenant")
 
-        if tenant is None:
-            raise serializers.ValidationError(
-                "Tenant context is required."
+        if tenant is not None:
+            self.fields["department"].queryset = (
+                Department.objects.filter(
+                    tenant=tenant,
+                    is_active=True,
+                    is_deleted=False,
+                )
             )
 
-        self.fields["department"].queryset = (
-            Department.objects.filter(
-                tenant=tenant,
-                is_active=True,
-                is_deleted=False,
+            self.fields["subjects"].queryset = (
+                Subject.objects.filter(
+                    course__tenant=tenant,
+                    is_active=True,
+                    is_deleted=False,
+                )
             )
-        )
-
-        self.fields["subjects"].queryset = (
-            Subject.objects.filter(
-                course__tenant=tenant,
-                is_active=True,
-                is_deleted=False,
-            )
-        )
-
 
 class TeacherStatusSerializer(serializers.ModelSerializer):
     """

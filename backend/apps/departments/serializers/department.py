@@ -16,8 +16,12 @@ class TenantAwareSerializerMixin:
     def get_tenant(self):
         """
         Return the current tenant from serializer context.
-        """
-
+            """
+        print(
+            "GET_TENANT CALLED:",
+            self.__class__.__name__,
+            self.context,
+        )
         tenant = self.context.get("tenant")
 
         if tenant is None:

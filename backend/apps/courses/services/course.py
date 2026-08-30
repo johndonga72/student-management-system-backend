@@ -7,8 +7,6 @@ from __future__ import annotations
 from rest_framework.exceptions import ValidationError
 
 from apps.courses.models import Course
-
-
 class CourseService:
     """
     Service class containing business logic for course operations.

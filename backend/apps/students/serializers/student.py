@@ -72,7 +72,11 @@ class StudentApprovalSerializer(serializers.ModelSerializer):
         Validate tenant ownership and
         department-course relationship.
         """
-
+        print(
+                "GET_TENANT CALLED:",
+                self.__class__.__name__,
+                self.context,
+            )
         tenant = self.context.get("tenant")
 
         if tenant is None:

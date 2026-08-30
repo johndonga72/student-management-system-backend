@@ -1,14 +1,10 @@
 """
 Serializers for course-related operations.
 """
-
 from __future__ import annotations
-
 from rest_framework import serializers
-
 from apps.courses.models import Course
 from drf_spectacular.utils import extend_schema_field
-
 class BaseCourseSerializer(serializers.ModelSerializer):
     """
     Base serializer containing shared validation
@@ -50,7 +46,11 @@ class BaseCourseSerializer(serializers.ModelSerializer):
         """
         Validate the selected department.
         """
-
+        print(
+                "GET_TENANT CALLED:",
+                self.__class__.__name__,
+                self.context,
+            )
         tenant = self.context.get("tenant")
 
         if tenant is None:
@@ -62,31 +62,25 @@ class BaseCourseSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Selected department does not belong to this tenant."
             )
-
         if not department.is_active:
             raise serializers.ValidationError(
                 "Selected department is inactive."
             )
-
         if department.is_deleted:
             raise serializers.ValidationError(
                 "Selected department has been deleted."
             )
-
         return department
 
     def validate_name(self, value):
         """
         Validate course name.
         """
-
         value = value.strip()
-
         if not value:
             raise serializers.ValidationError(
                 "Course name cannot be empty."
             )
-
         return value
 
     def validate_code(self, value):
@@ -162,8 +156,6 @@ class CourseSerializer(serializers.ModelSerializer):
             "id": obj.department.id,
             "name": obj.department.name,
         }
-
-
 class CourseStatusSerializer(serializers.Serializer):
     """
     Serializer for updating course status.

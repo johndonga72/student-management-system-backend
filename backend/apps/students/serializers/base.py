@@ -53,7 +53,11 @@ class BaseStudentSerializer(serializers.ModelSerializer):
         Validate that the department belongs
         to the current tenant.
         """
-
+        print(
+                "GET_TENANT CALLED:",
+                self.__class__.__name__,
+                self.context,
+            )
         tenant = self.context.get("tenant")
 
         if tenant is None:
@@ -83,7 +87,11 @@ class BaseStudentSerializer(serializers.ModelSerializer):
         Validate that the course belongs
         to the current tenant.
         """
-
+        print(
+                "GET_TENANT CALLED:",
+                self.__class__.__name__,
+                self.context,
+            )
         tenant = self.context.get("tenant")
 
         if tenant is None:
