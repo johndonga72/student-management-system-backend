@@ -131,7 +131,6 @@ class TeacherStatusSerializer(serializers.ModelSerializer):
     """
     Serializer for changing teacher status.
     """
-
     class Meta:
         model = Teacher
         fields = (
