@@ -24,6 +24,16 @@ class CustomUser(AbstractUser):
     of the default username field.
     """
     username = None
+    
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.PROTECT,
+        related_name="users",
+        null=True,
+        blank=True,
+        help_text="Tenant this user belongs to.",
+    )
+    
     email = models.EmailField(
         unique=True,
         help_text="Unique email address used for authentication.",
