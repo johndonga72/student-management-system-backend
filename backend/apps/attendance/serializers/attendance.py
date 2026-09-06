@@ -7,7 +7,6 @@ from apps.teachers.models import Teacher
 
 from .base import BaseAttendanceSerializer
 
-
 class AttendanceCreateSerializer(
     BaseAttendanceSerializer
 ):

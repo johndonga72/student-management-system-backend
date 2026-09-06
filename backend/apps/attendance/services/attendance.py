@@ -15,7 +15,6 @@ class AttendanceService:
     """
     Service class for attendance business logic.
     """
-
     # =====================================================
     # Private Helper Methods
     # =====================================================
@@ -98,7 +97,6 @@ class AttendanceService:
             )
 
         return teacher
-
     @classmethod
     def _validate_student(
         cls,
@@ -122,7 +120,6 @@ class AttendanceService:
                     is_deleted=False,
                 )
             )
-
         except Student.DoesNotExist as exc:
             raise ValidationError(
                 {

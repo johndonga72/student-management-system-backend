@@ -1,7 +1,7 @@
 """
 Attendance API views.
 """
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema,OpenApiParameter
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -69,7 +69,6 @@ class AttendanceAPIView(APIView):
         Retrieve attendance details
         within the current tenant.
         """
-
         attendance = (
             AttendanceService.get_attendance_by_id(
                 tenant=request.tenant,
@@ -148,7 +147,6 @@ class AttendanceListAPIView(APIView):
         Retrieve all attendance records
         for the current tenant.
         """
-
         attendance_records = (
             AttendanceService.list_attendance(
                 tenant=request.tenant,
@@ -160,5 +158,64 @@ class AttendanceListAPIView(APIView):
         )
         return Response(
             serializer.data,
+            status=status.HTTP_200_OK,
+        )
+class AttendanceExcelUploadTestAPIView(APIView):
+    """
+    Temporary API view used to test Excel file uploads.
+    """
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdminRole,
+    ]
+
+    @extend_schema(
+        description="Test endpoint for receiving an attendance Excel file.",
+        request={
+            "multipart/form-data": {
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                    },
+                },
+                "required": ["file"],
+            }
+        },
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string"},
+                    "size": {"type": "integer"},
+                },
+            }
+        },
+    )
+    def post(self, request):
+        """
+        Receive an Excel file and confirm that Django received it.
+        """
+
+        uploaded_file = request.FILES.get("file")
+
+        if uploaded_file is None:
+            return Response(
+                {
+                    "error": "Excel file is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "message": (
+                    f"File '{uploaded_file.name}' "
+                    "received successfully."
+                ),
+                "size": uploaded_file.size,
+            },
             status=status.HTTP_200_OK,
         )

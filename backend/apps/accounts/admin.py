@@ -1,19 +1,14 @@
 """
 Admin configuration for the accounts application.
 """
-
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-
 from apps.accounts.models import CustomUser
-
-
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     """
     Admin configuration for the CustomUser model.
     """
-
     list_display = (
         "id",
         "email",
@@ -23,23 +18,20 @@ class CustomUserAdmin(UserAdmin):
         "is_active",
         "is_staff",
         "created_at",
+        "tenant",
     )
-
     list_filter = (
         "role",
         "is_active",
         "is_staff",
         "is_superuser",
     )
-
     search_fields = (
         "email",
         "first_name",
         "last_name",
     )
-
     ordering = ("email",)
-
     readonly_fields = (
         "created_at",
         "updated_at",
@@ -52,6 +44,7 @@ class CustomUserAdmin(UserAdmin):
                 "fields": (
                     "email",
                     "password",
+                    "tenant",
                 )
             },
         ),

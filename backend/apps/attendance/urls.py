@@ -5,6 +5,7 @@ from django.urls import path
 from apps.attendance.views import (
     AttendanceAPIView,
     AttendanceListAPIView,
+    AttendanceExcelUploadTestAPIView,
 )
 app_name = "attendance"
 urlpatterns = [
@@ -22,5 +23,10 @@ urlpatterns = [
         "list/",
         AttendanceListAPIView.as_view(),
         name="attendance-list",
+    ),
+    path(
+        "import-test/",
+        AttendanceExcelUploadTestAPIView.as_view(),
+        name="attendance-excel-upload-test",
     ),
 ]

@@ -3,14 +3,14 @@ Attendance base serializer.
 
 This module defines the base serializer used
 for attendance responses.
-"""
 
+"""
 from rest_framework import serializers
 
 from apps.attendance.models import Attendance
 
-
 class BaseAttendanceSerializer(serializers.ModelSerializer):
+    
     """
     Base serializer for attendance records.
     """

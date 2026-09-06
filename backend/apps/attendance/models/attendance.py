@@ -4,10 +4,8 @@ Attendance model.
 This module defines the attendance model used
 to manage student attendance records.
 """
-
 from django.db import models
 from django.utils import timezone
-
 from apps.core.managers import TenantAwareManager
 from apps.core.models import TimeStampedModel
 from apps.students.models import Student
@@ -16,7 +14,6 @@ from apps.teachers.models import Teacher
 from apps.tenants.models import Tenant
 
 from .choices import AttendanceStatus
-
 
 class Attendance(TimeStampedModel):
     """

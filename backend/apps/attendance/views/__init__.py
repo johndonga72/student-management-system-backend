@@ -7,8 +7,11 @@ for the attendance module.
 from .attendance import (
     AttendanceAPIView,
     AttendanceListAPIView,
-)
+    AttendanceExcelUploadTestAPIView,
+    
+) 
 __all__ = [
     "AttendanceAPIView",
     "AttendanceListAPIView",
+    "AttendanceExcelUploadTestAPIView",
 ]
