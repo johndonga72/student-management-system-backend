@@ -13,6 +13,7 @@ from apps.attendance.serializers import (
 )
 from apps.attendance.services import AttendanceService
 from apps.core.permissions import IsAdminRole
+from apps.attendance.utils.excel import AttendanceExcelReader
 class AttendanceAPIView(APIView):
     """
     API view for attendance operations.
@@ -208,14 +209,27 @@ class AttendanceExcelUploadTestAPIView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        try:
+            attendance_rows = AttendanceExcelReader.read(
+                uploaded_file=uploaded_file,
+            )
+
+        except ValueError as exc:
+            return Response(
+                {
+                    "error": str(exc),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(
             {
                 "message": (
                     f"File '{uploaded_file.name}' "
-                    "received successfully."
+                    "read successfully."
                 ),
-                "size": uploaded_file.size,
+                "row_count": len(attendance_rows),
+                "rows": attendance_rows,
             },
             status=status.HTTP_200_OK,
         )
