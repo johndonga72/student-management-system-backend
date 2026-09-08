@@ -84,7 +84,7 @@ class AttendanceExcelReader:
             cls._normalize_header(header)
             for header in headers
         ]
-
+        
         attendance_rows = []
 
         for row in rows:
@@ -120,3 +120,4 @@ class AttendanceExcelReader:
             value is None
             for value in row
         )
+        
