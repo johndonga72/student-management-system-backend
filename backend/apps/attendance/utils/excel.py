@@ -1,8 +1,9 @@
 from typing import Any
 from openpyxl import load_workbook
 from openpyxl.workbook.workbook import Workbook
-
-
+from apps.attendance.utils.excel_validator import (
+    AttendanceExcelValidator,
+)
 class AttendanceExcelReader:
     """
     Reads attendance data from an Excel workbook.
@@ -71,9 +72,7 @@ class AttendanceExcelReader:
         Convert worksheet rows into dictionaries.
         """
 
-        rows = worksheet.iter_rows(
-            values_only=True,
-        )
+        rows = worksheet.iter_rows(values_only=True)
 
         headers = next(rows, None)
 
@@ -84,7 +83,11 @@ class AttendanceExcelReader:
             cls._normalize_header(header)
             for header in headers
         ]
-        
+
+        AttendanceExcelValidator.validate_headers(
+            headers=normalized_headers,
+        )
+
         attendance_rows = []
 
         for row in rows:
@@ -98,7 +101,6 @@ class AttendanceExcelReader:
             attendance_rows.append(row_data)
 
         return attendance_rows
-
     @staticmethod
     def _normalize_header(header: Any) -> str:
         """
@@ -115,9 +117,7 @@ class AttendanceExcelReader:
         """
         Check whether an Excel row contains no data.
         """
-
         return all(
             value is None
             for value in row
-        )
-        
+        )      

@@ -1,6 +1,4 @@
 from typing import Any
-
-
 class AttendanceExcelValidator:
     """
     Validates the structure of an attendance Excel file.
@@ -8,7 +6,6 @@ class AttendanceExcelValidator:
     This class is responsible only for Excel-specific validation.
     Business validation is handled by serializers and services.
     """
-
     REQUIRED_COLUMNS = {
         "student_number",
         "employee_id",
@@ -48,7 +45,6 @@ class AttendanceExcelValidator:
         """
         Check for duplicate column names.
         """
-
         seen = set()
         duplicates = set()
 

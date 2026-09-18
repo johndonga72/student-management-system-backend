@@ -1,6 +1,7 @@
 """
 Attendance API views.
 """
+from rest_framework.exceptions import ValidationError
 from drf_spectacular.utils import extend_schema,OpenApiParameter
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -14,6 +15,7 @@ from apps.attendance.serializers import (
 from apps.attendance.services import AttendanceService
 from apps.core.permissions import IsAdminRole
 from apps.attendance.utils.excel import AttendanceExcelReader
+
 class AttendanceAPIView(APIView):
     """
     API view for attendance operations.
@@ -126,18 +128,14 @@ class AttendanceAPIView(APIView):
             response_serializer.data,
             status=status.HTTP_200_OK,
         )
-
-
 class AttendanceListAPIView(APIView):
     """
     API view for listing attendance records.
     """
-
     permission_classes = [
         IsAuthenticated,
         IsAdminRole,
     ]
-
     @extend_schema(
         responses=BaseAttendanceSerializer(
             many=True,
@@ -165,7 +163,6 @@ class AttendanceExcelUploadTestAPIView(APIView):
     """
     Temporary API view used to test Excel file uploads.
     """
-
     permission_classes = [
         IsAuthenticated,
         IsAdminRole,
@@ -197,7 +194,7 @@ class AttendanceExcelUploadTestAPIView(APIView):
     )
     def post(self, request):
         """
-        Receive an Excel file and confirm that Django received it.
+        Receive an attendance Excel file and import attendance records.
         """
 
         uploaded_file = request.FILES.get("file")
@@ -205,13 +202,24 @@ class AttendanceExcelUploadTestAPIView(APIView):
         if uploaded_file is None:
             return Response(
                 {
-                    "error": "Excel file is required."
+                    "error": "Excel file is required.",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
         try:
             attendance_rows = AttendanceExcelReader.read(
                 uploaded_file=uploaded_file,
+            )
+
+            validated_rows = AttendanceService.validate_excel_rows(
+                tenant=request.tenant,
+                rows=attendance_rows,
+            )
+
+            attendance_records = AttendanceService.bulk_create_attendance(
+                tenant=request.tenant,
+                validated_rows=validated_rows,
             )
 
         except ValueError as exc:
@@ -222,14 +230,19 @@ class AttendanceExcelUploadTestAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        except ValidationError as exc:
+            return Response(
+                exc.detail,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         return Response(
             {
                 "message": (
-                    f"File '{uploaded_file.name}' "
-                    "read successfully."
+                    f"{len(attendance_records)} attendance records "
+                    "imported successfully."
                 ),
-                "row_count": len(attendance_rows),
-                "rows": attendance_rows,
+                "count": len(attendance_records),
             },
-            status=status.HTTP_200_OK,
+            status=status.HTTP_201_CREATED,
         )

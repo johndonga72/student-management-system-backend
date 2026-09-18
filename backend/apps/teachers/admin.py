@@ -66,6 +66,7 @@ class TeacherAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "department",
+                    "tenant",
                     "designation",
                     "qualification",
                     "specialization",
