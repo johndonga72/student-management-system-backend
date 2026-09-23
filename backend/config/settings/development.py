@@ -38,3 +38,10 @@ DATABASES = {
 # ==========================================================
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# catch settings for development
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "student-erp-cache",
+    },
+}
