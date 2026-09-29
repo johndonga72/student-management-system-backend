@@ -3,8 +3,10 @@ Business services for department-related operations.
 """
 
 from apps.departments.models import Department
-
-
+from apps.core.cache.helpers import get_cache, set_cache
+from apps.core.cache.keys import DepartmentCacheKeys
+from apps.departments.models import Department
+from typing import Any
 class DepartmentService:
     """
     Service class containing business logic for department operations.
@@ -32,19 +34,33 @@ class DepartmentService:
         )
 
     @staticmethod
-    def list_departments(tenant):
+    def list_departments(
+        tenant,
+    ) -> list[dict[str, Any]]:
         """
-        Retrieve all active, non-deleted departments
-        belonging to the given tenant.
+        Retrieve active, non-deleted departments for the tenant.
+
+        Uses a tenant-aware cache-aside strategy.
 
         Args:
             tenant: Current tenant.
 
         Returns:
-            QuerySet[Department]: Tenant-scoped departments.
+            list[dict[str, Any]]: Department data for the tenant.
         """
 
-        return (
+        cache_key = DepartmentCacheKeys.list(
+            tenant_id=tenant.id,
+        )
+
+        cached_departments = get_cache(
+            cache_key,
+        )
+
+        if cached_departments is not None:
+            return cached_departments
+
+        departments = (
             Department.objects
             .for_tenant(tenant)
             .filter(
@@ -52,7 +68,26 @@ class DepartmentService:
                 is_deleted=False,
             )
             .order_by("name")
+            .values(
+                "id",
+                "name",
+                "code",
+                "description",
+                "is_active",
+                "created_at",
+                "updated_at",
+            )
         )
+
+        department_data = list(departments)
+
+        set_cache(
+            key=cache_key,
+            value=department_data,
+            timeout=DepartmentService.DEPARTMENT_LIST_CACHE_TIMEOUT,
+        )
+
+        return department_data
 
     @staticmethod
     def get_department_by_id(
